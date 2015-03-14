@@ -7,6 +7,7 @@ var _ = require("underscore"),
 	randId = require('alphanumeric-id'),
 	merge = require("merge"),
 	asyncWait = require("asyncwait"),
+	hjson = require("hjson"),
 	fs = require("fs");
 
 var hasClusterSupport = cluster.Worker != null;
@@ -80,7 +81,7 @@ _.extend(Application.prototype, Backbone.Events, {
 		var self, log, name, attemptExit, version, args;
 
 		args = _.toArray(arguments);
-		if (parent instanceof Application) args.unshift();
+		if (parent instanceof Application) args.shift();
 		else parent = null;
 
 		// make sure init didn't already get run
@@ -139,13 +140,16 @@ _.extend(Application.prototype, Backbone.Events, {
 		if (parent != null) {
 			// prevent parent from entering running state until this one is running
 			parent.ready(function() {
-				self.running(parent.wait());
+				if (!self.state) return;
+				var wait = parent.wait();
+				self.once("state:fail", wait);
+				self.running(wait);
 			});
 
 			// exit the app on parent shutdown
 			parent.shutdown(function() {
-				self.halt();
 				self.exit(parent.wait());
+				self.halt();
 			});
 		} else {
 			this.options = _.clone(Application.defaults);
@@ -155,9 +159,11 @@ _.extend(Application.prototype, Backbone.Events, {
 		this.set.apply(this, args);
 
 		// auto-enable logging before we make loggers
-		if (log = this.get("log")) {
-			if (this.isRoot) debug.enable(typeof log === "string" ? log : name + "*");
-			else name = parent.name + ":" + name;
+		if (this.isRoot) {
+			log = this.get("log")
+			if (log) debug.enable(typeof log === "string" ? log : name + "*");
+		} else {
+			name = parent.name + ":" + name;
 		}
 
 		// set up loggers
@@ -169,7 +175,7 @@ _.extend(Application.prototype, Backbone.Events, {
 		this.log.worker = function() { if (self.isWorker) self.log.apply(self, arguments); }
 
 		// clustering
-		if (this.hasClusterSupport) this.cluster = cluster;
+		if (hasClusterSupport) this.cluster = cluster;
 
 		// on server, handle normal exits
 		if (this.isServer) {
@@ -195,10 +201,10 @@ _.extend(Application.prototype, Backbone.Events, {
 		if (this._handleErrors(true)) return;
 
 		// announce our new application
-		if (this.isMaster && this.isRoot) {
+		if (this.isMaster) this.ready(function() {
 			version = this.get("version");
 			this.log("Starting %s application (%sbuild %s)", this.get("env"), version ? "v" + version + ", " : "", this.id);
-		}
+		});
 	},
 
 	use: function(plugin) {
@@ -212,20 +218,9 @@ _.extend(Application.prototype, Backbone.Events, {
 		if (~this._plugins.indexOf(plugin)) return this;
 		this._plugins.push(plugin);
 
-		if (isapp) plugin.start(this);
+		if (isapp) this.init(function() { plugin.start(this); });
 		else plugin.apply(this, _.toArray(arguments).slice(1));
 
-		return this;
-	},
-
-	ready: function(fn) {
-		if (typeof fn !== "function") {
-			throw new Error("Expecting a function for ready callback.");
-		}
-
-		if (this.state >= this.READY) fn.call(this);
-		else this.once("state:ready", fn);
-		
 		return this;
 	},
 
@@ -244,7 +239,7 @@ _.extend(Application.prototype, Backbone.Events, {
 		if (this._errors == null) this._errors = [];
 		this._errors.push(err);
 		this.trigger("error", err);
-
+	
 		if (this.state != null && this.get("log_errors") !== false) {
 			var logval;
 			if (typeof err === "string") logval = _.toArray(arguments);
@@ -262,6 +257,8 @@ _.extend(Application.prototype, Backbone.Events, {
 	},
 
 	set: function() {
+		if (!arguments.length) return this;
+
 		if (!this.isRoot) {
 			this.parent.set.apply(this.parent, arguments);
 		} else {
@@ -298,10 +295,10 @@ _.extend(Application.prototype, Backbone.Events, {
 		return path.relative(this.get("cwd"), to);
 	},
 
-	getBrowserConfig: function() {
-		var bconfig = _.pick(this.get(), this.get("browser_keys"));
-		_.extend(bconfig, this.get("browser"));
-		return bconfig;
+	getBrowserOptions: function() {
+		var options = _.pick(this.get(), this.get("browser_keys"));
+		_.extend(options, this.get("browser_options"));
+		return options;
 	},
 
 	// handles changing states
@@ -329,11 +326,8 @@ _.extend(Application.prototype, Backbone.Events, {
 			
 			// make the state change
 			self._onStateChange();
-			self._announceState();
 
-			// the state change may have caused some errors
-			if (self._handleErrors(true)) return;
-
+			// handle the special cases first
 			switch (self.state) {
 				case self.RUNNING:
 					self.log.master("Application started successfully in " + (new Date - self._initDate) + "ms.");
@@ -344,6 +338,12 @@ _.extend(Application.prototype, Backbone.Events, {
 					self._fullappexit(0);
 					break;
 			}
+
+			// annouce the change
+			self._announceState();
+
+			// the state change may have caused some errors
+			self._handleErrors(true);
 		}));
 	},
 
