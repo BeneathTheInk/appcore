@@ -1,0 +1,24 @@
+{
+	"name": "bti-appcore",
+	"version": "1.0.0",
+	"main": "index.js",
+	"browser": {
+		"fs": false
+	},
+	"dependencies": {
+		"alphanumeric-id": "~1.0.0",
+		"asyncwait": "~1.0.0",
+		"backbone": "~1.1.2",
+		"debug": "~2.1.3",
+		"merge": "~1.2.0",
+		"object-path": "~0.9.0",
+		"underscore": "~1.8.2"
+	},
+	"devDependencies": {
+		"grunt": "~0.4.5",
+		"grunt-browserify": "~3.5.0",
+		"grunt-contrib-clean": "~0.6.0",
+		"grunt-contrib-uglify": "~0.8.0",
+		"grunt-wrap2000": "~0.1.0"
+	}
+}
