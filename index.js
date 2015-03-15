@@ -32,12 +32,13 @@ Application.create = function(configure, props, sprops) {
 	if (typeof configure !== "function")
 		throw new Error("Expecting function for configure.");
 
-	var ctor = Application.extend(_.extend({
+	var klass = this;
+	var ctor = klass.extend(_.extend({
 		constructor: function(name) {
 			if (!(this instanceof ctor)) {
 				return new ctor(name);
 			}
-			Application.call(this, name);
+			klass.call(this, name);
 		},
 		configure: configure
 	}, props), sprops);
