@@ -174,7 +174,7 @@ _.extend(Application.prototype, Backbone.Events, {
 			// exit the app on parent shutdown
 			parent.shutdown(function() {
 				// deferred so child can fully exit before parent
-				self.exit(_.defer.bind(_, parent.wait()));
+				self.exit(_.partial(_.defer, parent.wait()));
 				self.halt();
 			});
 		}

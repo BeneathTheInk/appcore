@@ -8,14 +8,14 @@ module.exports = function(grunt) {
 				src: "index.js",
 				dest: "dist/application.js",
 				options: {
-					browserifyOptions: { standalone: "Binkify" }
+					browserifyOptions: { standalone: "Appcore" }
 				}
 			},
 			dev: {
 				src: "index.js",
 				dest: "dist/application.dev.js",
 				options: {
-					browserifyOptions: { debug: true, standalone: "Binkify" }
+					browserifyOptions: { debug: true, standalone: "Appcore" }
 				}
 			}
 		},

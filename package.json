@@ -1,9 +1,15 @@
 {
-	"name": "bti-appcore",
+	"name": "appcore",
 	"version": "1.0.0",
+	"description": "Application framework base.",
+	"private": true,
 	"main": "index.js",
 	"browser": {
 		"fs": false
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://beneaththeink.git.beanstalkapp.com/appcore.git"
 	},
 	"dependencies": {
 		"alphanumeric-id": "~1.0.0",
