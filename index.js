@@ -20,6 +20,7 @@ module.exports = function(name) {
 
 	if (typeof name === "string" && name != "") this.name = name;
 	this.id = randId(12);
+	this.options = _.clone(Application.defaults);
 	this.configure();
 }
 
@@ -136,7 +137,7 @@ _.extend(Application.prototype, Backbone.Events, {
 			}
 		});
 
-		// see if options is the parent application
+		// apply the parent
 		if (parent != null) {
 			// prevent parent from entering running state until this one is running
 			parent.ready(function() {
@@ -151,8 +152,6 @@ _.extend(Application.prototype, Backbone.Events, {
 				self.exit(parent.wait());
 				self.halt();
 			});
-		} else {
-			this.options = _.clone(Application.defaults);
 		}
 
 		// set initial options
@@ -201,10 +200,10 @@ _.extend(Application.prototype, Backbone.Events, {
 		if (this._handleErrors(true)) return;
 
 		// announce our new application
-		if (this.isMaster) this.ready(function() {
+		if (this.isMaster) {
 			version = this.get("version");
 			this.log("Starting %s application (%sbuild %s)", this.get("env"), version ? "v" + version + ", " : "", this.id);
-		});
+		}
 	},
 
 	use: function(plugin) {
@@ -218,8 +217,11 @@ _.extend(Application.prototype, Backbone.Events, {
 		if (~this._plugins.indexOf(plugin)) return this;
 		this._plugins.push(plugin);
 
-		if (isapp) this.init(function() { plugin.start(this); });
-		else plugin.apply(this, _.toArray(arguments).slice(1));
+		var args = _.toArray(arguments).slice(1);
+		this.init(function() {
+			if (isapp) plugin.start.apply(plugin, [this].concat(args));
+			else plugin.apply(this, args);
+		});
 
 		return this;
 	},
@@ -251,22 +253,22 @@ _.extend(Application.prototype, Backbone.Events, {
 		return this;
 	},
 
-	get: function(key, def) {
-		if (!this.isRoot) return this.parent.get(key, def);
-		return objectPath.get(this.options, key, def);
+	get: function(key) {
+		var val, app = this;
+
+		while (app != null && typeof val === "undefined") {
+			val = objectPath.get(app.options, key);
+			app = app.parent;
+		}
+
+		return val;
 	},
 
 	set: function() {
-		if (!arguments.length) return this;
-
-		if (!this.isRoot) {
-			this.parent.set.apply(this.parent, arguments);
-		} else {
-			_.each(arguments, function(obj) {
-				if (_.isString(obj)) this.load(obj);
-				if (_.isObject(obj)) this.options = merge(this.options, obj);
-			}, this);
-		}
+		_.each(arguments, function(obj) {
+			if (_.isString(obj)) this.load(obj);
+			if (_.isObject(obj)) this.options = merge(this.options, obj);
+		}, this);
 
 		return this;
 	},
@@ -344,7 +346,7 @@ _.extend(Application.prototype, Backbone.Events, {
 
 			// the state change may have caused some errors
 			self._handleErrors(true);
-		}));
+		}), this);
 	},
 
 	// triggers state events
