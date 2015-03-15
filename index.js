@@ -13,15 +13,20 @@ var _ = require("underscore"),
 var hasClusterSupport = cluster.Worker != null;
 
 var Application =
-module.exports = function(name) {
+module.exports = function(name, options) {
 	if (!(this instanceof Application)) {
-		return new Application(name);
+		return new Application(name, options);
+	}
+
+	if (_.isObject(name) && options == null) {
+		options = name;
+		name = options.name;
 	}
 
 	if (typeof name === "string" && name != "") this.name = name;
 	this.id = randId(12);
 	this.options = _.clone(Application.defaults);
-	this.configure();
+	this.configure(options);
 }
 
 Application.Events = Backbone.Events;
@@ -34,11 +39,11 @@ Application.create = function(configure, props, sprops) {
 
 	var klass = this;
 	var ctor = klass.extend(_.extend({
-		constructor: function(name) {
+		constructor: function(name, options) {
 			if (!(this instanceof ctor)) {
-				return new ctor(name);
+				return new ctor(name, options);
 			}
-			klass.call(this, name);
+			klass.call(this, name, options);
 		},
 		configure: configure
 	}, props), sprops);
