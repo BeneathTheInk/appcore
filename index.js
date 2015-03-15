@@ -26,11 +26,13 @@ module.exports = function(name) {
 
 Application.Events = Backbone.Events;
 Application.extend = Backbone.Model.extend;
-Application.create = function(configure) {
+
+// like extend, but prefills the constructor/configure
+Application.create = function(configure, props, sprops) {
 	if (typeof configure !== "function")
 		throw new Error("Expecting function for configure.");
 
-	var ctor = Application.extend({
+	var ctor = Application.extend(_.extend({
 		constructor: function(name) {
 			if (!(this instanceof ctor)) {
 				return new ctor(name);
@@ -38,7 +40,7 @@ Application.create = function(configure) {
 			Application.call(this, name);
 		},
 		configure: configure
-	});
+	}, props), sprops);
 
 	return ctor;
 }
@@ -226,7 +228,7 @@ _.extend(Application.prototype, Backbone.Events, {
 		var isapp = plugin instanceof Application ||
 			plugin === Application ||
 			plugin.prototype instanceof Application;
-			
+
 		if (!isapp && !_.isFunction(plugin)) {
 			throw new Error("Expecting function for plugin.");
 		}
