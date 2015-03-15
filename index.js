@@ -176,8 +176,8 @@ _.extend(Application.prototype, Backbone.Events, {
 		// clustering
 		if (hasClusterSupport) this.cluster = cluster;
 
-		// on server, handle normal exits
-		if (this.isServer) {
+		// on server root, handle normal exits
+		if (this.isServer && this.isRoot) {
 			attemptExit = function() {
 				if (!self.halt()) self._fullappexit(0);
 			}
@@ -188,22 +188,22 @@ _.extend(Application.prototype, Backbone.Events, {
 			// handle nodemon exits
 			process.once("SIGUSR2", function() {
 				function kill() { process.kill(process.pid, "SIGUSR2"); }
-				self.once("state:exit", kill);
-				if (!self.halt()) kill();
+				if (self.halt()) self.exit(kill);
+				else kill();
 			});
+		}
+
+		// log about our new application
+		if (this.isMaster) {
+			version = this.get("version");
+			this.log("Starting %s application (%sbuild %s)", this.get("env"), version ? "v" + version + ", " : "", this.id);
 		}
 
 		// set up state
 		this.state = this.INIT;
 		this._onStateChange();
 		this._announceState();
-		if (this._handleErrors(true)) return;
-
-		// announce our new application
-		if (this.isMaster) {
-			version = this.get("version");
-			this.log("Starting %s application (%sbuild %s)", this.get("env"), version ? "v" + version + ", " : "", this.id);
-		}
+		this._handleErrors(true);
 	},
 
 	use: function(plugin) {
@@ -329,16 +329,10 @@ _.extend(Application.prototype, Backbone.Events, {
 			// make the state change
 			self._onStateChange();
 
-			// handle the special cases first
-			switch (self.state) {
-				case self.RUNNING:
-					self.log.master("Application started successfully in " + (new Date - self._initDate) + "ms.");
-					self._onhalt = self.wait();
-					break;
-
-				case self.EXIT:
-					self._fullappexit(0);
-					break;
+			// handle running state
+			if (self.state === self.RUNNING) {
+				self.log.master("Application started successfully in " + (new Date - self._initDate) + "ms.");
+				self._onhalt = self.wait();
 			}
 
 			// annouce the change
@@ -346,6 +340,9 @@ _.extend(Application.prototype, Backbone.Events, {
 
 			// the state change may have caused some errors
 			self._handleErrors(true);
+			
+			// exit on exit
+			if (self.state === self.EXIT) self._fullappexit(0);
 		}), this);
 	},
 
