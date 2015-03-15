@@ -10,14 +10,18 @@ Build a UMD bundle and use via a script tag. The variable `Appcore` will be atta
 <script type="text/javascript" src="appcore.js"></script>
 ```
 
-If using Browserify or Node.js, you can install via Beneath the Ink's private Gemfury NPM registry. See [Gemfury's docs](https://gemfury.com/help/npm-registry) for details on integrating. The following assumes the registry is assigned to the `@beneaththeink` scope.
-
-```sh
-$ npm install appcore --scope=@beneaththeink
+```js
+var app = Appcore("myapp");
 ```
 
-```javascript
-var app = require("appcore")("myapp");
+If using Browserify or Node.js, you can install via Beneath the Ink's private Gemfury NPM registry. See [Gemfury's docs](https://gemfury.com/help/npm-registry) for details on integrating with NPM scopes.
+
+```sh
+$ npm install @beneaththeink/appcore
+```
+
+```js
+var app = require("@beneaththeink/appcore")("myapp");
 ```
 
 ## Usage
