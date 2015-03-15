@@ -173,7 +173,8 @@ _.extend(Application.prototype, Backbone.Events, {
 
 			// exit the app on parent shutdown
 			parent.shutdown(function() {
-				self.exit(parent.wait());
+				// deferred so child can fully exit before parent
+				self.exit(_.defer.bind(_, parent.wait()));
 				self.halt();
 			});
 		}
@@ -196,6 +197,10 @@ _.extend(Application.prototype, Backbone.Events, {
 		this.log.debug = debug(name + ":debug");
 		this.log.master = function() { if (self.isMaster) self.log.apply(self, arguments); }
 		this.log.worker = function() { if (self.isWorker) self.log.apply(self, arguments); }
+		this.log.root = function() { if (self.isRoot) self.log.apply(self, arguments); }
+		this.log.masterRoot = this.log.rootMaster = function() {
+			if (self.isRoot && self.isMaster) self.log.apply(self, arguments);
+		}
 
 		// clustering
 		if (hasClusterSupport) this.cluster = cluster;
@@ -211,17 +216,15 @@ _.extend(Application.prototype, Backbone.Events, {
 
 			// handle nodemon exits
 			process.once("SIGUSR2", function() {
-				function kill() { process.kill(process.pid, "SIGUSR2"); }
+				function kill() { self._fullappexit("SIGUSR2"); }
 				if (self.halt()) self.exit(kill);
 				else kill();
 			});
 		}
 
 		// log about our new application
-		if (this.isMaster) {
-			version = this.get("version");
-			this.log("Starting %s application (%sbuild %s)", this.get("env"), version ? "v" + version + ", " : "", this.id);
-		}
+		version = this.get("version");
+		this.log.rootMaster("Starting %s application (%sbuild %s)", this.get("env"), version ? "v" + version + ", " : "", this.id);
 
 		// set up state
 		this.state = this.INIT;
@@ -358,7 +361,7 @@ _.extend(Application.prototype, Backbone.Events, {
 
 			// handle running state
 			if (self.state === self.RUNNING) {
-				self.log.master("Application started successfully in " + (new Date - self._initDate) + "ms.");
+				self.log.rootMaster("Application started successfully in " + (new Date - self._initDate) + "ms.");
 				self._onhalt = self.wait();
 			}
 
@@ -392,8 +395,16 @@ _.extend(Application.prototype, Backbone.Events, {
 
 	// a browser compatible quit
 	_fullappexit: function(code) {
-		if (this.isRoot && typeof process.exit === "function") process.exit(code);
-		else this.log.master("Application has exited with status %s", code);
+		this.log.rootMaster("Application has exited with status %s", code);
+		
+		if (this.isRoot) {
+			if (code == null) code = 0;
+			if (typeof code === "string" && code && typeof process.kill === "function") {
+				process.kill(process.pid, code);
+			} else if (typeof code === "number" && !isNaN(code) && typeof process.exit === "function") {
+				process.exit(code);
+			}
+		}
 	},
 
 	_handleErrors: function(isAfter) {
