@@ -30,9 +30,25 @@ Application.create = function(configure) {
 	if (typeof configure !== "function")
 		throw new Error("Expecting function for configure.");
 
-	return Application.extend({
+	var ctor = Application.extend({
+		constructor: function(name) {
+			if (!(this instanceof ctor)) {
+				return new ctor(name);
+			}
+			Application.call(this, name);
+		},
 		configure: configure
 	});
+
+	return ctor;
+}
+
+// quick method for making an application and starting it
+// this makes an application class a compatible plugin
+Application.start = function() {
+	var app = new this();
+	app.start.apply(app, arguments);
+	return app;
 }
 
 // ascending state values
@@ -207,7 +223,10 @@ _.extend(Application.prototype, Backbone.Events, {
 	},
 
 	use: function(plugin) {
-		var isapp = plugin instanceof Application;
+		var isapp = plugin instanceof Application ||
+			plugin === Application ||
+			plugin.prototype instanceof Application;
+			
 		if (!isapp && !_.isFunction(plugin)) {
 			throw new Error("Expecting function for plugin.");
 		}
