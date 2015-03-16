@@ -53,6 +53,7 @@ Application.create = function(configure, props, sprops) {
 
 // quick method for making an application and starting it
 // this makes an application class a compatible plugin
+// you cannot pass configure options using this method
 Application.start = function() {
 	var app = new this();
 	app.start.apply(app, arguments);
@@ -75,27 +76,10 @@ _.extend(Application.prototype, state_constants);
 
 // lowercase version are methods to call now or on event
 _.each(state_constants, function(v, state) {
-	if (!v) return;// no support for fail
-	var lower = state.toLowerCase();
-	Application.prototype[lower] = _.partial(onState, v);
+	Application.prototype[state.toLowerCase()] = function(fn) {
+		return this.onState(v, fn);
+	}
 });
-
-function onState(val, fn) {
-	if (typeof fn !== "function") {
-		throw new Error("Expecting a function for callback.");
-	}
-
-	if (this.state != null && this.state >= val) fn.call(this);
-	else {
-		// we don't listen for the specific state event we want, instead
-		// we wait for the next state and try again, in a recursive fashion
-		// this makes the API appear as though later events are firing in the
-		// correct order even though they may have been added in inverse.
-		this.once("state", _.partial(onState, val, fn));
-	}
-	
-	return this;
-}
 
 // options defaults
 Application.defaults = {
@@ -124,49 +108,15 @@ _.extend(Application.prototype, Backbone.Events, {
 		self = this;
 		name = this.name;
 
-		// add protected properties
-		Object.defineProperties(this, {
-			hasClusterSupport: {
-				get: function() { return this.get("threads") && hasClusterSupport; },
-				configurable: false,
-				enumerable: true
-			},
-
-			isMaster: {
-				get: function() { return !hasClusterSupport || cluster.isMaster; },
-				configurable: false,
-				enumerable: true
-			},
-
-			isWorker: {
-				get: function() { return hasClusterSupport && cluster.isWorker; },
-				configurable: false,
-				enumerable: true
-			},
-
-			isClient: {
-				get: function() { return typeof window !== "undefined"; },
-				configurable: false,
-				enumerable: true
-			},
-
-			isServer: {
-				get: function() { return typeof window === "undefined"; },
-				configurable: false,
-				enumerable: true
-			},
-
-			parent: {
-				get: function() { return parent || null; },
-				configurable: false,
-				enumerable: true
-			},
-
-			isRoot: {
-				get: function() { return parent == null; },
-				configurable: false,
-				enumerable: true
-			}
+		// add protected, immutable properties
+		assignProps(this, {
+			hasClusterSupport: function() { return this.get("threads") && hasClusterSupport; },
+			isMaster: !hasClusterSupport || cluster.isMaster,
+			isWorker: hasClusterSupport && cluster.isWorker,
+			isClient: typeof window !== "undefined",
+			isServer: typeof window === "undefined",
+			parent: parent || null,
+			isRoot: parent == null
 		});
 
 		// apply the parent
@@ -231,14 +181,15 @@ _.extend(Application.prototype, Backbone.Events, {
 		}
 
 		// log about our new application
-		version = this.get("version");
-		this.log.rootMaster("Starting %s application (%sbuild %s)", this.get("env"), version ? "v" + version + ", " : "", this.id);
+		this.log.rootMaster(
+			"Starting %s application (%sbuild %s)",
+			this.get("env"),
+			(version = this.get("version")) ? "v" + version + ", " : "",
+			this.id
+		);
 
 		// set up state
-		this.state = this.INIT;
-		this._onStateChange();
-		this._announceState();
-		this._handleErrors(true);
+		this._modifyState(this.INIT);
 	},
 
 	use: function(plugin) {
@@ -261,6 +212,33 @@ _.extend(Application.prototype, Backbone.Events, {
 			else plugin.apply(this, args);
 		});
 
+		return this;
+	},
+
+	// a recursive method that calls fn when app hits the specified state
+	onState: function(val, fn) {
+		if (typeof fn !== "function") {
+			throw new Error("Expecting a function for callback.");
+		}
+
+		if (typeof val === "string" && val) val = Application.states[val.toUpperCase()];
+		if (typeof val !== "number" || isNaN(val) || val < 0) {
+			throw new Error("Invalid state.");
+		}
+
+		// check for fail state specifically or if we have passed the desired state
+		if (this.state != null && ((!val && !this.state) || this.state >= val)) {
+			fn.call(this);
+		}
+
+		// we don't listen for the specific state event we want, instead
+		// we wait for the next state and try again, in a recursive fashion
+		// this makes the API appear as though later events are firing in the
+		// correct order even though they may have been added in inverse.
+		else {
+			this.once("state", function() { this.onState(val, fn); });
+		}
+		
 		return this;
 	},
 
@@ -341,43 +319,43 @@ _.extend(Application.prototype, Backbone.Events, {
 		return options;
 	},
 
-	// handles changing states
-	_onStateChange: function() {
+	// sets up the application for a new state
+	_modifyState: function(newState) {
 		var self = this;
 
-		if (this.state === this.FAIL ||
-			this.state === this.EXIT) return;
+		// handle any errors since the last state change
+		if (this._handleErrors(false)) return;
 
-		this.wait = asyncWait(_.once(function() {
-			// don't keep running if we are in exit mode
-			if (self.state === self.FAIL ||
-				self.state === self.EXIT) return;
+		// check for valid state
+		if (typeof newState !== "number" || isNaN(newState) || newState < 0) {
+			throw new Error("Invalid state.");
+		}
 
-			// handle any errors since the last state change
-			if (self._handleErrors(false)) return;
+		// set the new state
+		this.state = newState;
 
-			// bump the state
-			// on init, master goes straight to ready
-			self.state++;
-			
-			// make a new wait method
-			self._onStateChange();
+		// fail and exit states are special
+		var exitState = this.state === this.FAIL || this.state >= this.EXIT;
 
-			// handle running state
-			if (self.state === self.RUNNING) {
-				self.log.rootMaster("Application started successfully in " + (new Date - self._initDate) + "ms.");
-				self._onhalt = self.wait();
+		// assign wait if not exitting
+		if (!exitState) this.wait = asyncWait(_.once(function() {
+			// only bump state if we are in a good state
+			if (this.state !== this.FAIL && this.state < this.EXIT) {
+				this._modifyState(this.state + 1);
 			}
+		}), this);
 
-			// annouce the change
-			self._announceState();
+		// handle running state
+		if (this.state === this.RUNNING) {
+			this.log.rootMaster("Application started successfully in " + (new Date - this._initDate) + "ms.");
+			this._onhalt = this.wait();
+		}
 
-			// the state change may have caused some errors
-			self._handleErrors(true);
-			
-			// exit on exit
-			if (self.state === self.EXIT) self._fullappexit(0);
-		}));
+		// annouce the change
+		this._announceState();
+		
+		// test for more errors and exit on exit
+		if (!self._handleErrors(true) && exitState) this._fullappexit(0);
 	},
 
 	// triggers state events
@@ -412,18 +390,35 @@ _.extend(Application.prototype, Backbone.Events, {
 		}
 	},
 
+	// sets the app into fail mode when there are errors
 	_handleErrors: function(isAfter) {
 		var inRange = (!isAfter && this.state < this.RUNNING) ||
 			(isAfter && this.state <= this.RUNNING);
 
 		if (inRange && this._errors && this._errors.length) {
 			this.log("Errors preventing startup.");
-			this.state = this.FAIL;
-			this._announceState();
-			this._fullappexit(1);
+			this._modifyState(this.FAIL);
 			return true;
 		}
 
 		return false;
 	}
 });
+
+// defines protected, immutable properties
+function assignProps(obj, props) {
+	_.each(props, function(val, key) {
+		var opts = {
+			configurable: false,
+			enumerable: true
+		};
+
+		if (typeof val === "function") opts.get = val;
+		else {
+			opts.value = val;
+			opts.writable = false;
+		}
+
+		Object.defineProperty(obj, key, opts);
+	});
+}
