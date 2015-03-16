@@ -92,6 +92,7 @@ _.each(state_constants, function(v, state) {
 
 // options defaults
 Application.defaults = {
+	log: true,
 	cwd: process.browser ? "/" : process.cwd(),
 	env: process.env.NODE_ENV || "development",
 	browser_keys: [ "version", "env", "log" ]
@@ -166,7 +167,7 @@ _.extend(Application.prototype, Backbone.Events, {
 		this.log.masterRoot = this.log.rootMaster = function() {
 			if (self.isRoot && self.isMaster) self.log.apply(self, arguments);
 		}
-		
+
 		// clustering
 		if (hasClusterSupport) this.cluster = cluster;
 
