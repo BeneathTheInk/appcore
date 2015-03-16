@@ -1,6 +1,6 @@
 # Appcore
 
-This is a JavaScript application framework that allows us to maintain large, composable Node.js and Browser applications. It maintains a flexible, plugin-driven API that allows components to be seperated by functionality while still sharing basic resources.
+This is a JavaScript application framework that allows us to maintain large, composable Node.js and Browser applications. It maintains a flexible, plugin-driven API that allows components to be separated by functionality while still sharing basic resources.
 
 ## Install
 
@@ -32,7 +32,7 @@ To begin, make a new application instance by passing in a name.
 var app = Appcore("myapp");
 ```
 
-Appcore only helps to maintain large application infrastructure and makes no assumptions about the types of things an application might be doing. Appcore requires all functionality to be "adapted" through plugins so it can maintain compatiblity with the rest of the system. Fortuantely, plugins are easy to add.
+Appcore only helps to maintain large application infrastructure and makes no assumptions about the types of things an application might be doing. Appcore requires all functionality to be "adapted" through plugins so it can maintain compatibility with the rest of the system. Fortunately, plugins are easy to add:
 
 ```js
 app.use(function() {
@@ -43,15 +43,15 @@ app.use(function() {
 app.use(Appcore("myotherapp"));
 ```
 
-Every app has a lifecycle, maintained through a series of states, starting with initiation and ending with the exit. A plugin has the ability to perform actions on every state and prevent the app from entering the next state. In this way, an app can be set up asynchronously and without interference.
+Every app has a life-cycle, maintained through a series of states, starting with initiation and ending with the exit. A plugin has the ability to perform actions on every particular state change and can prevent the app from entering the next state. In this way, app can be initiated asynchronously and without interference.
 
-An app has a total of 5 executing states and one error state (`FAIL`):
+An app has a total of 5 executing states and one error state, `FAIL`. An app will only enter the failing state if it hasn't reached the `RUNNING` state. Otherwise, it's just a normal error. Here is the order events are performed in:
 
 ```txt
 INIT -> READY -> RUNNING -> SHUTDOWN -> EXIT
 ```
 
-As a plugin, you can listen for a particular state change by using the quick methods of the same name. These methods are special in that if the app is already at that state or later, the function is executed immediately. All the states, other than `FAIL`, have the equivalent methods.
+As a plugin, you can listen for a particular state change by using the quick methods of the same name. These methods are special in that if the app is already at that state or later, the function is executed immediately. All the states have the equivalent methods.
 
 ```js
 app.use(function() {
