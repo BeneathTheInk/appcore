@@ -77,17 +77,25 @@ _.extend(Application.prototype, state_constants);
 _.each(state_constants, function(v, state) {
 	if (!v) return;// no support for fail
 	var lower = state.toLowerCase();
-	Application.prototype[lower] = function(fn) {
-		if (typeof fn !== "function") {
-			throw new Error("Expecting a function for callback.");
-		}
+	Application.prototype[lower] = _.partial(onState, v);
+});
 
-		if (this.state != null && this.state !== this.FAIL && this.state >= this[state]) fn.call(this);
-		else this.once("state:" + lower, fn);
-		
-		return this;
+function onState(val, fn) {
+	if (typeof fn !== "function") {
+		throw new Error("Expecting a function for callback.");
 	}
-})
+
+	if (this.state != null && this.state >= val) fn.call(this);
+	else {
+		// we don't listen for the specific state event we want, instead
+		// we wait for the next state and try again, in a recursive fashion
+		// this makes the API appear as though later events are firing in the
+		// correct order even though they may have been added in inverse.
+		this.once("state", _.partial(onState, val, fn));
+	}
+	
+	return this;
+}
 
 // options defaults
 Application.defaults = {
@@ -350,13 +358,9 @@ _.extend(Application.prototype, Backbone.Events, {
 
 			// bump the state
 			// on init, master goes straight to ready
-			if (self.state < self.READY && self.hasClusterSupport && self.isMaster) {
-				self.state = self.RUNNING;
-			} else {
-				self.state++;
-			}
+			self.state++;
 			
-			// make the state change
+			// make a new wait method
 			self._onStateChange();
 
 			// handle running state
@@ -373,7 +377,7 @@ _.extend(Application.prototype, Backbone.Events, {
 			
 			// exit on exit
 			if (self.state === self.EXIT) self._fullappexit(0);
-		}), this);
+		}));
 	},
 
 	// triggers state events
@@ -386,6 +390,7 @@ _.extend(Application.prototype, Backbone.Events, {
 
 		try {
 			key = key.toLowerCase();
+			this.trigger("state:" + this.state);
 			this.trigger("state:" + key);
 			this.trigger("state", key);
 		} catch(e) {
