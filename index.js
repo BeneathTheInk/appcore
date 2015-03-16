@@ -60,6 +60,15 @@ Application.start = function() {
 	return app;
 }
 
+Application.isApp = function(obj) {
+	return Boolean(
+		obj != null && (
+		obj.__appcore || (
+		typeof obj === "function" &&
+		obj.prototype.__appcore
+	)));
+}
+
 // ascending state values
 var state_constants = Application.states = {
 	FAIL: 0,
@@ -90,6 +99,7 @@ Application.defaults = {
 
 // prototype methods/properties
 _.extend(Application.prototype, Backbone.Events, {
+	__appcore: true,
 	name: "app",
 
 	configure: function(){},
@@ -98,7 +108,7 @@ _.extend(Application.prototype, Backbone.Events, {
 		var self, log, name, attemptExit, version, args;
 
 		args = _.toArray(arguments);
-		if (parent instanceof Application) args.shift();
+		if (Application.isApp(parent)) args.shift();
 		else parent = null;
 
 		// make sure init didn't already get run
@@ -141,12 +151,9 @@ _.extend(Application.prototype, Backbone.Events, {
 		this.set.apply(this, args);
 
 		// auto-enable logging before we make loggers
-		if (this.isRoot) {
-			log = this.get("log")
-			if (log) debug.enable(typeof log === "string" ? log : name + "*");
-		} else {
-			name = parent.name + ":" + name;
-		}
+		if (!this.isRoot) name = parent.name + ":" + name;
+		log = this.get("log")
+		if (log) debug.names.push(new RegExp("^" + name + ".*?$"));
 
 		// set up loggers
 		this.log = debug(name);
@@ -159,7 +166,7 @@ _.extend(Application.prototype, Backbone.Events, {
 		this.log.masterRoot = this.log.rootMaster = function() {
 			if (self.isRoot && self.isMaster) self.log.apply(self, arguments);
 		}
-
+		
 		// clustering
 		if (hasClusterSupport) this.cluster = cluster;
 
@@ -169,8 +176,8 @@ _.extend(Application.prototype, Backbone.Events, {
 				if (!self.halt()) self._fullappexit(0);
 			}
 
-			process.once("SIGINT", attemptExit);
-			process.once("SIGTERM", attemptExit);
+			process.on("SIGINT", attemptExit);
+			process.on("SIGTERM", attemptExit);
 
 			// handle nodemon exits
 			process.once("SIGUSR2", function() {
@@ -193,12 +200,10 @@ _.extend(Application.prototype, Backbone.Events, {
 	},
 
 	use: function(plugin) {
-		var isapp = plugin instanceof Application ||
-			plugin === Application ||
-			plugin.prototype instanceof Application;
+		var isapp = Application.isApp(plugin);
 
 		if (!isapp && !_.isFunction(plugin)) {
-			throw new Error("Expecting function for plugin.");
+			throw new Error("Expecting function or application for plugin.");
 		}
 
 		// check if plugin is already loaded on this template
@@ -397,7 +402,9 @@ _.extend(Application.prototype, Backbone.Events, {
 
 		if (inRange && this._errors && this._errors.length) {
 			this.log("Errors preventing startup.");
-			this._modifyState(this.FAIL);
+			this.state = this.FAIL;
+			this._announceState();
+			this._fullappexit(1);
 			return true;
 		}
 
