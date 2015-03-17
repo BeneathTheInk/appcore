@@ -83,9 +83,7 @@ var state_constants = Application.states = {
 	FAIL: 0,
 	INIT: 1,
 	READY: 2,
-	RUNNING: 3,
-	SHUTDOWN: 4,
-	EXIT: 5
+	RUNNING: 3
 }
 
 // attach constants directly to instances and class
@@ -115,16 +113,16 @@ _.extend(Application.prototype, Backbone.Events, {
 	configure: function(){},
 
 	start: function(parent) {
-		var self, log, name, attemptExit, version, args;
+		var self, log, name, version, args;
 
 		args = _.toArray(arguments);
 		if (Application.isApp(parent)) args.shift();
 		else parent = null;
 
 		// make sure init didn't already get run
-		if (this.state != null) return this.set.apply(this, args);
-
+		if (this._initDate != null) return this.set.apply(this, args);
 		this._initDate = new Date;
+
 		self = this;
 		name = this.name;
 
@@ -141,15 +139,8 @@ _.extend(Application.prototype, Backbone.Events, {
 			parent.ready(function() {
 				if (!self.state) return;
 				var wait = parent.wait();
-				self.once("state:fail", wait);
+				self.fail(wait);
 				self.running(wait);
-			});
-
-			// exit the app on parent shutdown
-			parent.shutdown(function() {
-				// deferred so child can fully exit before parent
-				self.exit(_.partial(_.defer, parent.wait()));
-				self.halt();
 			});
 		}
 
@@ -176,23 +167,6 @@ _.extend(Application.prototype, Backbone.Events, {
 		// clustering
 		if (hasClusterSupport) this.cluster = cluster;
 
-		// on server root, handle normal exits
-		if (this.isServer && this.isRoot) {
-			attemptExit = function() {
-				if (!self.halt()) self._fullappexit(0);
-			}
-
-			process.on("SIGINT", attemptExit);
-			process.on("SIGTERM", attemptExit);
-
-			// handle nodemon exits
-			process.once("SIGUSR2", function() {
-				function kill() { self._fullappexit("SIGUSR2"); }
-				if (self.halt()) self.exit(kill);
-				else kill();
-			});
-		}
-
 		// log about our new application
 		this.log.rootMaster(
 			"Starting %s application (%sbuild %s)",
@@ -201,8 +175,10 @@ _.extend(Application.prototype, Backbone.Events, {
 			this.id
 		);
 
-		// set up state
+		// set up initial state
 		this._modifyState(this.INIT);
+
+		return this;
 	},
 
 	use: function(plugin) {
@@ -251,17 +227,6 @@ _.extend(Application.prototype, Backbone.Events, {
 		}
 		
 		return this;
-	},
-
-	halt: function() {
-		if (this._onhalt != null) {
-			var onhalt = this._onhalt;
-			delete this._onhalt;
-			onhalt();
-			return true;
-		}
-
-		return false;
 	},
 
 	error: function(err) {
@@ -332,8 +297,6 @@ _.extend(Application.prototype, Backbone.Events, {
 
 	// sets up the application for a new state
 	_modifyState: function(newState) {
-		var self = this;
-
 		// handle any errors since the last state change
 		if (this._handleErrors(false)) return;
 
@@ -345,28 +308,24 @@ _.extend(Application.prototype, Backbone.Events, {
 		// set the new state
 		this.state = newState;
 
-		// fail and exit states are special
-		var exitState = this.state === this.FAIL || this.state >= this.EXIT;
-
-		// assign wait if not exitting
-		if (!exitState) this.wait = asyncWait(_.once(function() {
-			// only bump state if we are in a good state
-			if (this.state !== this.FAIL && this.state < this.EXIT) {
+		// assign wait if not failing
+		if (this.state !== this.FAIL) this.wait = asyncWait(_.once(function() {
+			// only bump state if we are not failing
+			if (this.state !== this.FAIL) {
 				this._modifyState(this.state + 1);
 			}
 		}), this);
 
-		// handle running state
+		// announce running state
 		if (this.state === this.RUNNING) {
 			this.log.rootMaster("Application started successfully in " + (new Date - this._initDate) + "ms.");
-			this._onhalt = this.wait();
 		}
 
 		// annouce the change
 		this._announceState();
 		
-		// test for more errors and exit on exit
-		if (!self._handleErrors(true) && exitState) this._fullappexit(0);
+		// test for more errors
+		this._handleErrors(true);
 	},
 
 	// triggers state events
@@ -387,20 +346,6 @@ _.extend(Application.prototype, Backbone.Events, {
 		}
 	},
 
-	// a browser compatible quit
-	_fullappexit: function(code) {
-		this.log.rootMaster("Application has exited with status %s", code);
-		
-		if (this.isRoot) {
-			if (code == null) code = 0;
-			if (typeof code === "string" && code && typeof process.kill === "function") {
-				process.kill(process.pid, code);
-			} else if (typeof code === "number" && !isNaN(code) && typeof process.exit === "function") {
-				process.exit(code);
-			}
-		}
-	},
-
 	// sets the app into fail mode when there are errors
 	_handleErrors: function(isAfter) {
 		var inRange = (!isAfter && this.state < this.RUNNING) ||
@@ -410,7 +355,6 @@ _.extend(Application.prototype, Backbone.Events, {
 			this.log("Errors preventing startup.");
 			this.state = this.FAIL;
 			this._announceState();
-			this._fullappexit(1);
 			return true;
 		}
 
