@@ -113,7 +113,7 @@ _.extend(Application.prototype, Backbone.Events, {
 	configure: function(){},
 
 	start: function(parent) {
-		var self, log, name, version, args;
+		var self, log, name, version, args, ancestors, app, fullname;
 
 		args = _.toArray(arguments);
 		if (Application.isApp(parent)) args.shift();
@@ -123,14 +123,22 @@ _.extend(Application.prototype, Backbone.Events, {
 		if (this._initDate != null) return this.set.apply(this, args);
 		this._initDate = new Date;
 
+		// get the full name by look up the parents
 		self = this;
 		name = this.name;
+		fullname = name;
+		app = parent;
+		while (app != null) {
+			fullname = app.name + ":" + fullname;
+			app = app.parent;
+		}
 
 		// add protected, immutable properties
 		assignProps(this, {
 			hasClusterSupport: function() { return this.get("threads") && hasClusterSupport; },
 			parent: parent || null,
-			isRoot: parent == null
+			isRoot: parent == null,
+			fullname: fullname
 		});
 
 		// apply the parent
@@ -148,15 +156,14 @@ _.extend(Application.prototype, Backbone.Events, {
 		this.set.apply(this, args);
 
 		// auto-enable logging before we make loggers
-		if (!this.isRoot) name = parent.name + ":" + name;
-		log = this.get("log")
-		if (log) debug.names.push(new RegExp("^" + name + ".*?$"));
+		log = this.get("log");
+		if (log) debug.names.push(new RegExp("^" + fullname + ".*?$"));
 
 		// set up loggers
-		this.log = debug(name);
-		this.log.error = debug(name + ":error");
-		this.log.warn = debug(name + ":warn");
-		this.log.debug = debug(name + ":debug");
+		this.log = debug(fullname);
+		this.log.error = debug(fullname + ":error");
+		this.log.warn = debug(fullname + ":warn");
+		this.log.debug = debug(fullname + ":debug");
 		this.log.master = function() { if (self.isMaster) self.log.apply(self, arguments); }
 		this.log.worker = function() { if (self.isWorker) self.log.apply(self, arguments); }
 		this.log.root = function() { if (self.isRoot) self.log.apply(self, arguments); }
