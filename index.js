@@ -26,6 +26,15 @@ module.exports = function(name, options) {
 	if (typeof name === "string" && name != "") this.name = name;
 	this.id = randId(12);
 	this.options = _.clone(Application.defaults);
+
+	// assign protected props that are known
+	assignProps(this, {
+		isMaster: !hasClusterSupport || cluster.isMaster,
+		isWorker: hasClusterSupport && cluster.isWorker,
+		isClient: typeof window !== "undefined",
+		isServer: typeof window === "undefined"
+	});
+
 	this.configure(options);
 }
 
@@ -122,10 +131,6 @@ _.extend(Application.prototype, Backbone.Events, {
 		// add protected, immutable properties
 		assignProps(this, {
 			hasClusterSupport: function() { return this.get("threads") && hasClusterSupport; },
-			isMaster: !hasClusterSupport || cluster.isMaster,
-			isWorker: hasClusterSupport && cluster.isWorker,
-			isClient: typeof window !== "undefined",
-			isServer: typeof window === "undefined",
 			parent: parent || null,
 			isRoot: parent == null
 		});
