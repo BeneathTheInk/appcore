@@ -2,7 +2,7 @@
 
 var argv = require("minimist")(process.argv.slice(2), {
 	string: [ "config" ],
-	boolean: [ "help", "version" ],
+	boolean: [ "help" ],
 	alias: {
 		h: "help", H: "help",
 		v: "version", V: "version",
@@ -18,7 +18,7 @@ if (argv.help || argv._[0] === "help") {
 	process.exit(0);
 }
 
-if (argv.version) {
+if (argv.version === true) {
 	var pkg = require("../package.json");
 	console.log("%s v%s", pkg.name, pkg.version);
 	process.exit(0);
