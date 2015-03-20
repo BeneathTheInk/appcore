@@ -24,12 +24,25 @@ if (argv.version) {
 	process.exit(0);
 }
 
-try {
-	var Appcore = require("../");
-	var app = require(process.cwd());
+var Appcore = require("../");
+var resolve = require("resolve");
+var app, plugins;
 
-	if (!Appcore.isApp(app)) {
-		throw new Error("Cannot launch in this directory because it does not export a valid application.");
+try {
+	plugins = argv._;
+	if (!plugins.length) plugins.push("./");
+	
+	plugins = plugins.map(function(n) {
+		return resolve.sync(n, { basedir: process.cwd() });
+	}).map(function(n) {
+		return require(n);
+	});
+
+	if (plugins.length === 1 && Appcore.isApp(plugins[0])) {
+		app = plugins[0];
+	} else {
+		app = Appcore("app");
+		plugins.forEach(function(p) { app.use(p); });
 	}
 
 	app.start("package.json", argv.config, argv);
