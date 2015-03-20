@@ -316,12 +316,14 @@ _.extend(Application.prototype, Backbone.Events, {
 		this.state = newState;
 
 		// assign wait if not failing
-		if (this.state !== this.FAIL) this.wait = asyncWait(_.once(function() {
-			// only bump state if we are not failing
-			if (this.state !== this.FAIL) {
-				this._modifyState(this.state + 1);
-			}
-		}), this);
+		if (this.state !== this.FAIL && this.state < this.RUNNING) {
+			this.wait = asyncWait(_.once(function() {
+				// only bump state if we are not failing
+				if (this.state !== this.FAIL && this.state < this.RUNNING) {
+					this._modifyState(this.state + 1);
+				}
+			}), this);
+		}
 
 		// announce running state
 		if (this.state === this.RUNNING) {
