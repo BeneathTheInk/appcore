@@ -102,7 +102,7 @@ Application.defaults = {
 	log: true,
 	cwd: process.browser ? "/" : process.cwd(),
 	env: process.env.NODE_ENV || "development",
-	browser_keys: [ "version", "env", "log" ]
+	browserKeys: [ "version", "env", "log" ]
 };
 
 // prototype methods/properties
@@ -241,7 +241,7 @@ _.extend(Application.prototype, Backbone.Events, {
 		this._errors.push(err);
 		this.trigger("error", err);
 	
-		if (this.state != null && this.get("log_errors") !== false) {
+		if (this.state != null && this.get("logErrors") !== false) {
 			var logval;
 			if (typeof err === "string") logval = _.toArray(arguments);
 			else if (err instanceof Error) logval = [ err.stack || err.toString() ];
@@ -297,8 +297,8 @@ _.extend(Application.prototype, Backbone.Events, {
 	},
 
 	getBrowserOptions: function() {
-		var options = _.pick(this.get(), this.get("browser_keys"));
-		_.extend(options, this.get("browser_options"));
+		var options = _.pick(this.get(), this.get("browserKeys"));
+		_.extend(options, this.get("browserOptions"));
 		return options;
 	},
 
