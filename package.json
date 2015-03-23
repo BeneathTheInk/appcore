@@ -1,6 +1,6 @@
 {
 	"name": "@beneaththeink/appcore",
-	"version": "1.0.3",
+	"version": "1.0.4",
 	"description": "Application framework base.",
 	"private": true,
 	"main": "index.js",
@@ -19,16 +19,16 @@
 		"asyncwait": "~1.0.2",
 		"backbone": "~1.1.2",
 		"debug": "~2.1.3",
-		"hjson": "~1.6.1",
+		"hjson": "~1.6.3",
 		"merge": "~1.2.0",
 		"minimist": "~1.1.1",
-		"object-path": "~0.9.0",
+		"object-path": "~0.9.1",
 		"resolve": "~1.1.6",
 		"underscore": "~1.8.2"
 	},
 	"devDependencies": {
 		"grunt": "~0.4.5",
-		"grunt-browserify": "~3.5.0",
+		"grunt-browserify": "~3.5.1",
 		"grunt-contrib-clean": "~0.6.0",
 		"grunt-contrib-uglify": "~0.8.0",
 		"grunt-wrap2000": "~0.1.0"
