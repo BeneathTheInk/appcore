@@ -221,7 +221,7 @@ _.extend(Application.prototype, Backbone.Events, {
 		}
 
 		// check for fail state specifically or if we have passed the desired state
-		if (this.state != null && ((!val && !this.state) || this.state >= val)) {
+		if (this.state != null && ((!val && !this.state) || (val > 0 && this.state >= val))) {
 			fn.call(this);
 		}
 
