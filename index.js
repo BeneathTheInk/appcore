@@ -5,7 +5,6 @@ var _ = require("underscore"),
 	cluster = require("cluster"),
 	objectPath = require("object-path"),
 	randId = require('alphanumeric-id'),
-	merge = require("merge"),
 	asyncWait = require("asyncwait"),
 	hjson = require("hjson"),
 	fs = require("fs");
@@ -25,7 +24,7 @@ module.exports = function(name, options) {
 
 	if (typeof name === "string" && name != "") this.name = name;
 	this.id = randId(12);
-	this.options = _.clone(Application.defaults);
+	this.options = {}; // fresh options
 
 	// assign protected props that are known
 	assignProps(this, {
@@ -152,6 +151,9 @@ _.extend(Application.prototype, Backbone.Events, {
 			});
 		}
 
+		// we don't apply default options until now so children apps inherit properly
+		if (this.isRoot) this.defaults(Application.defaults);
+
 		// set initial options
 		this.set.apply(this, args);
 
@@ -232,7 +234,7 @@ _.extend(Application.prototype, Backbone.Events, {
 		else {
 			this.once("state", function() { this.onState(val, fn); });
 		}
-		
+
 		return this;
 	},
 
@@ -240,7 +242,7 @@ _.extend(Application.prototype, Backbone.Events, {
 		if (this._errors == null) this._errors = [];
 		this._errors.push(err);
 		this.trigger("error", err);
-	
+
 		if (this.state != null && this.get("logErrors") !== false) {
 			var logval;
 			if (typeof err === "string") logval = _.toArray(arguments);
@@ -248,7 +250,7 @@ _.extend(Application.prototype, Backbone.Events, {
 			else if (err != null) logval = [ err.message || JSON.stringify(err) ];
 			if (logval) this.log.error.apply(null, logval);
 		}
-		
+
 		return this;
 	},
 
@@ -263,22 +265,28 @@ _.extend(Application.prototype, Backbone.Events, {
 		return val;
 	},
 
-	set: function() {
-		_.each(arguments, function(obj) {
-			if (_.isString(obj)) this.load(obj);
-			if (_.isObject(obj)) this.options = merge(this.options, obj);
-		}, this);
+	_set: function(obj, safe) {
+		if (_.isString(obj)) this.load(obj, safe);
+		if (_.isObject(obj)) this.options = merge(this.options, obj, safe);
+	},
 
+	set: function() {
+		_.each(arguments, function(o) { this._set(o, false); }, this);
 		return this;
 	},
 
-	load: function(file) {
+	defaults: function() {
+		_.each(arguments, function(o) { this._set(o, true); }, this);
+		return this;
+	},
+
+	load: function(file, safe) {
 		if (this.isClient) return this;
 
 		// load options from a config file
 		try {
 			var config = fs.readFileSync(path.resolve(this.get("cwd"), file), { encoding: "utf-8" });
-			if (config) this.set(hjson.parse(config));
+			if (config) this._set(hjson.parse(config), safe);
 		} catch(e) {
 			if (e.code !== "ENOENT") throw e;
 		}
@@ -332,7 +340,7 @@ _.extend(Application.prototype, Backbone.Events, {
 
 		// annouce the change
 		this._announceState();
-		
+
 		// test for more errors
 		this._handleErrors(true);
 	},
@@ -387,4 +395,26 @@ function assignProps(obj, props) {
 
 		Object.defineProperty(obj, key, opts);
 	});
+}
+
+function isPlainObject(o) {
+	return o != null && o.constructor && _.has(o.constructor.prototype, "isPrototypeOf");
+}
+
+function merge(obj, val, safe) {
+	// recursive for plain objects only
+	if (isPlainObject(val)) {
+		if (!isPlainObject(obj)) {
+			if (safe && !_.isUndefined(obj)) return obj;
+			obj = {};
+		}
+
+		for (var k in val) {
+			obj[k] = merge(obj[k], val[k], safe);
+		}
+
+		return obj;
+	}
+
+	return safe && !_.isUndefined(obj) ? obj : val;
 }
