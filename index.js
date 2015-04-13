@@ -305,8 +305,11 @@ _.extend(Application.prototype, Backbone.Events, {
 	},
 
 	getBrowserOptions: function() {
-		var options = _.pick(this.get(), this.get("browserKeys"));
-		_.extend(options, this.get("browserOptions"));
+		var options = {};
+		var keys = this.get("browserKeys");
+		if (!_.isArray(keys)) keys = keys != null ? [ keys ] : [];
+		keys.forEach(function(k) { objectPath.set(options, k, this.get(k)); }, this);
+		merge(options, this.get("browserOptions"));
 		return options;
 	},
 
