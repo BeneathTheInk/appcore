@@ -27,7 +27,7 @@ module.exports = function(name, options) {
 	this.options = {}; // fresh options
 
 	// assign protected props that are known
-	assignProps(this, {
+	Application.assignProps(this, {
 		isMaster: !hasClusterSupport || cluster.isMaster,
 		isWorker: hasClusterSupport && cluster.isWorker,
 		isClient: typeof window !== "undefined",
@@ -133,7 +133,7 @@ _.extend(Application.prototype, Backbone.Events, {
 		}
 
 		// add protected, immutable properties
-		assignProps(this, {
+		Application.assignProps(this, {
 			hasClusterSupport: function() { return this.get("threads") && hasClusterSupport; },
 			parent: parent || null,
 			isRoot: parent == null,
@@ -177,7 +177,7 @@ _.extend(Application.prototype, Backbone.Events, {
 		if (hasClusterSupport) this.cluster = cluster;
 
 		// log about our new application
-		this.log.rootMaster(
+		this.log.root(
 			"Starting %s application (%sbuild %s)",
 			this.get("env"),
 			(version = this.get("version")) ? "v" + version + ", " : "",
@@ -267,7 +267,7 @@ _.extend(Application.prototype, Backbone.Events, {
 
 	_set: function(obj, safe) {
 		if (_.isString(obj)) this.load(obj, safe);
-		if (_.isObject(obj)) this.options = merge(this.options, obj, safe);
+		if (_.isObject(obj)) this.options = Application.merge(this.options, obj, safe);
 	},
 
 	set: function() {
@@ -309,7 +309,7 @@ _.extend(Application.prototype, Backbone.Events, {
 		var keys = this.get("browserKeys");
 		if (!_.isArray(keys)) keys = keys != null ? [ keys ] : [];
 		keys.forEach(function(k) { objectPath.set(options, k, this.get(k)); }, this);
-		merge(options, this.get("browserOptions"));
+		Application.merge(options, this.get("browserOptions"));
 		return options;
 	},
 
@@ -338,7 +338,7 @@ _.extend(Application.prototype, Backbone.Events, {
 
 		// announce running state
 		if (this.state === this.RUNNING) {
-			this.log.rootMaster("Application started successfully in " + (new Date - this._initDate) + "ms.");
+			this.log.root("Application started successfully in " + (new Date - this._initDate) + "ms.");
 		}
 
 		// annouce the change
@@ -382,42 +382,47 @@ _.extend(Application.prototype, Backbone.Events, {
 	}
 });
 
-// defines protected, immutable properties
-function assignProps(obj, props) {
-	_.each(props, function(val, key) {
-		var opts = {
-			configurable: false,
-			enumerable: true
-		};
+// a few utilities
+_.extend(Application, {
 
-		if (typeof val === "function") opts.get = val;
-		else {
-			opts.value = val;
-			opts.writable = false;
+	// defines protected, immutable properties
+	assignProps: function(obj, props) {
+		_.each(props, function(val, key) {
+			var opts = {
+				configurable: false,
+				enumerable: true
+			};
+
+			if (typeof val === "function") opts.get = val;
+			else {
+				opts.value = val;
+				opts.writable = false;
+			}
+
+			Object.defineProperty(obj, key, opts);
+		});
+	},
+
+	isPlainObject: function(o) {
+		return o != null && o.constructor && _.has(o.constructor.prototype, "isPrototypeOf");
+	},
+
+	merge: function(obj, val, safe) {
+		// recursive for plain objects only
+		if (Application.isPlainObject(val)) {
+			if (!Application.isPlainObject(obj)) {
+				if (safe && !_.isUndefined(obj)) return obj;
+				obj = {};
+			}
+
+			for (var k in val) {
+				obj[k] = Application.merge(obj[k], val[k], safe);
+			}
+
+			return obj;
 		}
 
-		Object.defineProperty(obj, key, opts);
-	});
-}
-
-function isPlainObject(o) {
-	return o != null && o.constructor && _.has(o.constructor.prototype, "isPrototypeOf");
-}
-
-function merge(obj, val, safe) {
-	// recursive for plain objects only
-	if (isPlainObject(val)) {
-		if (!isPlainObject(obj)) {
-			if (safe && !_.isUndefined(obj)) return obj;
-			obj = {};
-		}
-
-		for (var k in val) {
-			obj[k] = merge(obj[k], val[k], safe);
-		}
-
-		return obj;
+		return safe && !_.isUndefined(obj) ? obj : val;
 	}
 
-	return safe && !_.isUndefined(obj) ? obj : val;
-}
+});
