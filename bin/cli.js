@@ -31,7 +31,7 @@ var app, plugins;
 try {
 	plugins = argv._;
 	if (!plugins.length) plugins.push("./");
-	
+
 	plugins = plugins.map(function(n) {
 		return resolve.sync(n, { basedir: process.cwd() });
 	}).map(function(n) {
@@ -45,7 +45,7 @@ try {
 		plugins.forEach(function(p) { app.use(p); });
 	}
 
-	app.start("package.json", argv.config, argv);
+	app.start.apply(app, [ "package.json" ].concat(argv.config, argv));
 } catch(e) {
 	console.log(e.toString());
 }
