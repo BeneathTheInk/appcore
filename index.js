@@ -134,7 +134,9 @@ _.extend(Application.prototype, Backbone.Events, {
 
 		// add protected, immutable properties
 		Application.assignProps(this, {
-			hasClusterSupport: function() { return this.get("threads") && hasClusterSupport; },
+			hasClusterSupport: function() {
+				return Boolean(this.get("threads") && hasClusterSupport);
+			},
 			parent: parent || null,
 			isRoot: parent == null,
 			fullname: fullname
