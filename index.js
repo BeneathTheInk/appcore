@@ -77,6 +77,14 @@ Application.isApp = function(obj) {
 	)));
 }
 
+var log_levels = Application.log_levels = {
+	ALL: -1,
+	ERROR: 0,
+	WARN: 1,
+	INFO: 2,
+	DEBUG: 3,
+};
+
 // ascending state values
 var state_constants = Application.states = {
 	FAIL: 0,
@@ -112,7 +120,7 @@ _.extend(Application.prototype, Backbone.Events, {
 	configure: function(){},
 
 	start: function(parent) {
-		var self, log, name, version, args, ancestors, app, fullname;
+		var self, log, logLevel, lastLogLevel, name, version, args, ancestors, app, fullname;
 
 		args = _.toArray(arguments);
 		if (Application.isApp(parent)) args.shift();
@@ -142,16 +150,14 @@ _.extend(Application.prototype, Backbone.Events, {
 			fullname: fullname
 		});
 
-		// apply the parent
-		if (parent != null) {
-			// prevent parent from entering running state until this one is running
-			parent.ready(function() {
-				if (!self.state) return;
-				var wait = parent.wait();
-				self.fail(wait);
-				self.running(wait);
+		// wait for the parent at every state
+		if (parent != null) this.on("state", function(s) {
+			var wait = this.wait();
+			parent.once("state", function() {
+				// only continue if parent didn't error up
+				if (parent.state !== parent.FAIL) wait();
 			});
-		}
+		});
 
 		// we don't apply default options until now so children apps inherit properly
 		if (this.isRoot) this.defaults(Application.defaults);
@@ -161,19 +167,34 @@ _.extend(Application.prototype, Backbone.Events, {
 
 		// auto-enable logging before we make loggers
 		log = this.get("log");
-		if (log) debug.names.push(new RegExp("^" + fullname + ".*?$"));
+		if (log) debug.names.push(new RegExp("^" + fullname));
 
-		// set up loggers
+		// parse the log level
+		logLevel = this.get("logLevel");
+		if (_.isString(logLevel)) logLevel = Application.log_levels[logLevel.toUpperCase()];
+		if (typeof logLevel !== "number" || isNaN(logLevel)) logLevel = -1;
+
+		// make main logger
 		this.log = debug(fullname);
-		this.log.error = debug(fullname + ":error");
-		this.log.warn = debug(fullname + ":warn");
-		this.log.debug = debug(fullname + ":debug");
-		this.log.master = function() { if (self.isMaster) self.log.apply(self, arguments); }
-		this.log.worker = function() { if (self.isWorker) self.log.apply(self, arguments); }
-		this.log.root = function() { if (self.isRoot) self.log.apply(self, arguments); }
-		this.log.masterRoot = this.log.rootMaster = function() {
-			if (self.isRoot && self.isMaster) self.log.apply(self, arguments);
-		}
+
+		// set up each log level
+		_.each(Application.log_levels, function(lvl, name) {
+			if (lvl < 0) return;
+			this.log[name.toLowerCase()] = logLevel < 0 || logLevel >= lvl ?
+				debug(fullname + " [" + name + "]") :
+				function(){};
+		}, this);
+
+		// add cluster and root specific loggers
+		_.each({
+			master: this.isMaster,
+			worker: this.isWorker,
+			root: this.isRoot,
+			masterRoot: this.isMaster && this.isRoot,
+			rootMaster: this.isRoot && this.isMaster
+		}, function(enabled, prop) {
+			this.log[prop] = enabled ? (this.log.info || this.log) : function(){};
+		}, this);
 
 		// clustering
 		if (hasClusterSupport) this.cluster = cluster;
