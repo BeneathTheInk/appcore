@@ -289,8 +289,8 @@ _.extend(Application.prototype, Backbone.Events, {
 	get: function(key) {
 		var val, app = this;
 
-		while (app != null && typeof val === "undefined") {
-			val = objectPath.get(app.options, key);
+		while (app != null) {
+			val = Application.merge(val, objectPath.get(app.options, key), true);
 			app = app.parent;
 		}
 
