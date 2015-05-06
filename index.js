@@ -82,7 +82,7 @@ var log_levels = Application.log_levels = {
 	ERROR: 0,
 	WARN: 1,
 	INFO: 2,
-	DEBUG: 3,
+	DEBUG: 3
 };
 
 // ascending state values
@@ -153,6 +153,11 @@ _.extend(Application.prototype, Backbone.Events, {
 
 		// children apps force parents to wait for them
 		if (parent != null) (stallParent = _.bind(function() {
+			if (this.state >= parent.state) {
+				parent.once("state", stallParent);
+				return;
+			}
+
 			var wait = parent.wait();
 			this.once("state", function() {
 				// only continue if the state isn't an error
