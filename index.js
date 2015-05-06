@@ -120,7 +120,8 @@ _.extend(Application.prototype, Backbone.Events, {
 	configure: function(){},
 
 	start: function(parent) {
-		var self, log, logLevel, lastLogLevel, name, version, args, ancestors, app, fullname;
+		var self, log, logLevel, lastLogLevel, name, version,
+			args, ancestors, app, fullname, stallParent;
 
 		args = _.toArray(arguments);
 		if (Application.isApp(parent)) args.shift();
@@ -150,14 +151,17 @@ _.extend(Application.prototype, Backbone.Events, {
 			fullname: fullname
 		});
 
-		// wait for the parent at every state
-		if (parent != null) this.on("state", function(s) {
-			var wait = this.wait();
-			parent.once("state", function() {
-				// only continue if parent didn't error up
-				if (parent.state !== parent.FAIL) wait();
+		// children apps force parents to wait for them
+		if (parent != null) (stallParent = _.bind(function() {
+			var wait = parent.wait();
+			this.once("state", function() {
+				// only continue if the state isn't an error
+				if (this.state !== this.FAIL) {
+					wait();
+					parent.once("state", stallParent);
+				}
 			});
-		});
+		}, this))();
 
 		// we don't apply default options until now so children apps inherit properly
 		if (this.isRoot) this.defaults(Application.defaults);
