@@ -1,6 +1,6 @@
 {
 	"name": "@beneaththeink/appcore",
-	"version": "1.0.9",
+	"version": "1.1.0",
 	"description": "Application framework base.",
 	"private": true,
 	"main": "index.js",
