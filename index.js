@@ -128,8 +128,8 @@ _.extend(Application.prototype, Backbone.Events, {
 		else parent = null;
 
 		// make sure init didn't already get run
-		if (this._initDate != null) return this.set.apply(this, args);
-		this._initDate = new Date;
+		if (this.initDate != null) return this.set.apply(this, args);
+		this.initDate = new Date;
 
 		// get the full name by look up the parents
 		self = this;
@@ -207,14 +207,6 @@ _.extend(Application.prototype, Backbone.Events, {
 
 		// clustering
 		if (hasClusterSupport) this.cluster = cluster;
-
-		// log about our new application
-		this.log.root(
-			"Starting %s application (%sbuild %s)",
-			this.get("env"),
-			(version = this.get("version")) ? "v" + version + ", " : "",
-			this.id
-		);
 
 		// set up initial state
 		this._modifyState(this.INIT);
@@ -314,8 +306,17 @@ _.extend(Application.prototype, Backbone.Events, {
 
 	load: function(file, safe) {
 		if (this.isClient) return this;
-		file = resolve.sync(file, { basedir: this.get("cwd") })
-		if (config) this._set(require(file), safe);
+		var fpath, cwd = this.get("cwd");
+
+		// look up file path
+		try {
+			fpath = resolve.sync("./" + file, { basedir: cwd });
+		} catch(e) { try {
+			fpath = resolve.sync(file, { basedir: cwd });
+		} catch(e) {} }
+
+		if (fpath) this._set(require(fpath), safe);
+
 		return this;
 	},
 
@@ -359,11 +360,6 @@ _.extend(Application.prototype, Backbone.Events, {
 					this._modifyState(this.state + 1);
 				}
 			}), this);
-		}
-
-		// announce running state
-		if (this.state === this.RUNNING) {
-			this.log.root("Application started successfully in " + (new Date - this._initDate) + "ms.");
 		}
 
 		// annouce the change
