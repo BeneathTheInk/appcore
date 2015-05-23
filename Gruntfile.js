@@ -8,6 +8,7 @@ module.exports = function(grunt) {
 				src: "index.js",
 				dest: "dist/application.js",
 				options: {
+					external: [ "jquery" ],
 					browserifyOptions: { standalone: "Appcore" }
 				}
 			},
@@ -15,6 +16,7 @@ module.exports = function(grunt) {
 				src: "index.js",
 				dest: "dist/application.dev.js",
 				options: {
+					external: [ "jquery" ],
 					browserifyOptions: { debug: true, standalone: "Appcore" }
 				}
 			}
