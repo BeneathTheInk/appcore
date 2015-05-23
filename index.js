@@ -6,8 +6,8 @@ var _ = require("underscore"),
 	objectPath = require("object-path"),
 	randId = require('alphanumeric-id'),
 	asyncWait = require("asyncwait"),
-	hjson = require("hjson"),
-	fs = require("fs");
+	resolve = require("resolve"),
+	merge = require("plain-merge");
 
 var hasClusterSupport = cluster.Worker != null;
 
@@ -299,7 +299,7 @@ _.extend(Application.prototype, Backbone.Events, {
 
 	_set: function(obj, safe) {
 		if (_.isString(obj)) this.load(obj, safe);
-		if (_.isObject(obj)) this.options = Application.merge(this.options, obj, safe);
+		if (_.isObject(obj)) this.options = merge(this.options, obj, safe);
 	},
 
 	set: function() {
@@ -314,15 +314,8 @@ _.extend(Application.prototype, Backbone.Events, {
 
 	load: function(file, safe) {
 		if (this.isClient) return this;
-
-		// load options from a config file
-		try {
-			var config = fs.readFileSync(path.resolve(this.get("cwd"), file), { encoding: "utf-8" });
-			if (config) this._set(hjson.parse(config), safe);
-		} catch(e) {
-			if (e.code !== "ENOENT") throw e;
-		}
-
+		file = resolve.sync(file, { basedir: this.get("cwd") })
+		if (config) this._set(require(file), safe);
 		return this;
 	},
 
@@ -341,7 +334,7 @@ _.extend(Application.prototype, Backbone.Events, {
 		var keys = this.get("browserKeys");
 		if (!_.isArray(keys)) keys = keys != null ? [ keys ] : [];
 		keys.forEach(function(k) { objectPath.set(options, k, this.get(k)); }, this);
-		Application.merge(options, this.get("browserOptions"));
+		merge.extend(options, this.get("browserOptions"));
 		return options;
 	},
 
@@ -435,26 +428,6 @@ _.extend(Application, {
 		});
 	},
 
-	isPlainObject: function(o) {
-		return o != null && o.constructor && _.has(o.constructor.prototype, "isPrototypeOf");
-	},
-
-	merge: function(obj, val, safe) {
-		// recursive for plain objects only
-		if (Application.isPlainObject(val)) {
-			if (!Application.isPlainObject(obj)) {
-				if (safe && !_.isUndefined(obj)) return obj;
-				obj = {};
-			}
-
-			for (var k in val) {
-				obj[k] = Application.merge(obj[k], val[k], safe);
-			}
-
-			return obj;
-		}
-
-		return safe && !_.isUndefined(obj) ? obj : val;
-	}
+	merge: merge
 
 });

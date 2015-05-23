@@ -7,9 +7,6 @@ var argv = require("minimist")(process.argv.slice(2), {
 		h: "help", H: "help",
 		v: "version", V: "version",
 		c: "config"
-	},
-	default: {
-		config: "config.json"
 	}
 });
 
