@@ -12,14 +12,11 @@ var _ = require("underscore"),
 var hasClusterSupport = cluster.Worker != null;
 
 var Application =
-module.exports = function(name, options) {
+module.exports = function(name) {
 	if (!(this instanceof Application)) {
-		return new Application(name, options);
-	}
-
-	if (_.isObject(name) && options == null) {
-		options = name;
-		name = options.name;
+		var app = Object.create(Application.prototype);
+		Application.apply(app, arguments);
+		return app;
 	}
 
 	if (typeof name === "string" && name != "") this.name = name;
@@ -34,7 +31,7 @@ module.exports = function(name, options) {
 		isServer: typeof window === "undefined"
 	});
 
-	this.configure(options);
+	this.configure();
 }
 
 Application.Events = Backbone.Events;
