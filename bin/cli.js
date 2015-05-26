@@ -42,7 +42,7 @@ try {
 		plugins.forEach(function(p) { app.use(p); });
 	}
 
-	app.start.apply(app, [ "package.json" ].concat(argv.config, argv));
+	app.start.apply(app, [].concat(argv.config, argv));
 } catch(e) {
 	console.log(e.toString());
 }
