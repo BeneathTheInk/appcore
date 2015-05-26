@@ -32,8 +32,5 @@
 		"grunt-contrib-clean": "~0.6.0",
 		"grunt-contrib-uglify": "~0.9.1",
 		"grunt-wrap2000": "~0.1.0"
-	},
-	"scripts": {
-		"prepublish": "grunt dist"
 	}
 }
