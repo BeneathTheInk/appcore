@@ -4,74 +4,84 @@ var _ = require("underscore"),
 	debug = require("debug"),
 	cluster = require("cluster"),
 	objectPath = require("object-path"),
-	randId = require('alphanumeric-id'),
 	asyncWait = require("asyncwait"),
 	resolve = require("resolve"),
+	fs = require("fs"),
 	merge = require("plain-merge");
 
 var hasClusterSupport = cluster.Worker != null;
 
 var Application =
-module.exports = function(name) {
-	if (!(this instanceof Application)) {
-		var app = Object.create(Application.prototype);
-		Application.apply(app, arguments);
-		return app;
-	}
+module.exports = function() {
+	if (!(this instanceof Application)) return Application.construct(arguments);
 
-	if (typeof name === "string" && name != "") this.name = name;
-	this.id = randId(12);
+	this.id = _.uniqueId("a");
 	this.options = {}; // fresh options
 
-	// assign protected props that are known
-	Application.assignProps(this, {
-		isMaster: !hasClusterSupport || cluster.isMaster,
-		isWorker: hasClusterSupport && cluster.isWorker,
-		isClient: typeof window !== "undefined",
-		isServer: typeof window === "undefined"
-	});
-
-	this.configure();
+	// configure and go
+	this.defaultConfiguration();
+	this.configure.apply(this, arguments);
 }
 
-Application.Events = Backbone.Events;
-Application.extend = Backbone.Model.extend;
+// a few utilities
+_.extend(Application, {
+	merge: merge,
+	Events: Backbone.Events,
+	extend: Backbone.Model.extend,
+
+	construct: function(args) {
+		var app = Object.create(this.prototype);
+		this.apply(app, args);
+		return app;
+	},
+
+	// defines protected, immutable properties
+	assignProps: function(obj, props) {
+		_.each(props, function(val, key) {
+			var opts = {
+				configurable: false,
+				enumerable: true
+			};
+
+			if (typeof val === "function") opts.get = val;
+			else {
+				opts.value = val;
+				opts.writable = false;
+			}
+
+			Object.defineProperty(obj, key, opts);
+		});
+	}
+});
 
 // like extend, but prefills the constructor/configure
-Application.create = function(configure, props, sprops) {
+Application.create = function(name, configure, props, sprops) {
+	if (typeof name !== "string" || name === "")
+		throw new Error("Expecting non-empty string for name.");
+
 	if (typeof configure !== "function")
 		throw new Error("Expecting function for configure.");
 
 	var klass = this;
 	var ctor = klass.extend(_.extend({
-		constructor: function(name, options) {
-			if (!(this instanceof ctor)) {
-				return new ctor(name, options);
-			}
-			klass.call(this, name, options);
+		constructor: function() {
+			if (!(this instanceof ctor)) return Application.construct.call(ctor, arguments);
+			klass.apply(this, arguments);
 		},
+		name: name,
 		configure: configure
 	}, props), sprops);
 
 	return ctor;
 }
 
-// quick method for making an application and starting it
-// this makes an application class a compatible plugin
-// you cannot pass configure options using this method
-Application.start = function() {
-	var app = new this();
-	app.start.apply(app, arguments);
-	return app;
+Application.isApp =
+Application.isApplication = function(obj) {
+	return Boolean(obj != null && obj.__appcore);
 }
 
-Application.isApp = function(obj) {
-	return Boolean(
-		obj != null && (
-		obj.__appcore || (
-		typeof obj === "function" &&
-		obj.prototype.__appcore
-	)));
+Application.isClass = function(klass) {
+	return Boolean(_.isFunction(klass) && klass.prototype.__appcore);
 }
 
 var log_levels = Application.log_levels = {
@@ -101,77 +111,80 @@ _.each(state_constants, function(v, state) {
 	}
 });
 
-// options defaults
-Application.defaults = {
-	log: true,
-	cwd: process.browser ? "/" : process.cwd(),
-	env: process.env.NODE_ENV || "development",
-	browserKeys: [ "version", "env", "log" ]
-};
-
 // prototype methods/properties
 _.extend(Application.prototype, Backbone.Events, {
 	__appcore: true,
-	name: "app",
 
-	configure: function(){},
-
-	start: function(parent) {
-		var self, log, logLevel, lastLogLevel, name, version,
-			args, ancestors, app, fullname, stallParent;
-
-		args = _.toArray(arguments);
-		if (Application.isApp(parent)) args.shift();
-		else parent = null;
-
-		// make sure init didn't already get run
-		if (this.initDate != null) return this.set.apply(this, args);
-		this.initDate = new Date;
-
-		// get the full name by look up the parents
-		self = this;
-		name = this.name;
-		fullname = name;
-		app = parent;
-		while (app != null) {
-			fullname = app.name + ":" + fullname;
-			app = app.parent;
+	configure: function(name, options) {
+		if (typeof name === "object") {
+			options = name;
+			name = null;
 		}
 
-		// add protected, immutable properties
-		Application.assignProps(this, {
-			hasClusterSupport: function() {
-				return Boolean(this.get("threads") && hasClusterSupport);
-			},
-			parent: parent || null,
-			isRoot: parent == null,
-			fullname: fullname
+		if (typeof name == "string") this.setName(name);
+		if (options) this.set(options);
+	},
+
+	setName: function(name) {
+		if (typeof name !== "string" || name === "")
+			throw new Error("Expecting non-empty string for name.");
+
+		this.name = name;
+		this.setupLoggers();
+
+		return this;
+	},
+
+	defaultConfiguration: function() {
+		// this method can only run once
+		if (this.initDate != null) return;
+		this.initDate = new Date;
+
+		// set the default name
+		if (this.name == null) this.name = this.id;
+
+		var cwd = process.browser ? "/" : process.cwd();
+		var env = process.env.NODE_ENV || "development";
+
+		// default options
+		this.defaults({
+			log: true,
+			cwd: cwd,
+			env: env
 		});
 
-		// children apps force parents to wait for them
-		if (parent != null) (stallParent = _.bind(function() {
-			if (this.state >= parent.state) {
-				parent.once("state", stallParent);
-				return;
+		// add logging methods
+		this.setupLoggers();
+
+		// set up if attached to a parent
+		this.on("mount", function() {
+			this.setupLoggers();
+
+			// options that, unless explicitly set, are inherited from parent
+			if (this.get("cwd") === cwd) this.unset("cwd");
+			if (this.get("env") === env) this.unset("env");
+		});
+
+		// clustering
+		if (hasClusterSupport) this.cluster = cluster;
+
+		// create the wait method
+		this.wait = asyncWait(function() {
+			// only bump state if we are not failing
+			if (this.state !== this.FAIL && this.state < this.RUNNING) {
+				this._modifyState(this.state + 1);
 			}
+		}, this);
 
-			var wait = parent.wait();
-			this.once("state", function() {
-				// only continue if the state isn't an error
-				if (this.state !== this.FAIL) {
-					wait();
-					parent.once("state", stallParent);
-				}
-			});
-		}, this))();
+		// set the state immediately to init
+		this._modifyState(this.INIT);
+	},
 
-		// we don't apply default options until now so children apps inherit properly
-		if (this.isRoot) this.defaults(Application.defaults);
-
-		// set initial options
-		this.set.apply(this, args);
+	setupLoggers: function() {
+		var log, logLevel, fullname;
 
 		// auto-enable logging before we make loggers
+		fullname = this.fullname;
 		log = this.get("log");
 		if (log) debug.names.push(new RegExp("^" + fullname));
 
@@ -201,32 +214,48 @@ _.extend(Application.prototype, Backbone.Events, {
 		}, function(enabled, prop) {
 			this.log[prop] = enabled ? (this.log.info || this.log) : function(){};
 		}, this);
+	},
 
-		// clustering
-		if (hasClusterSupport) this.cluster = cluster;
+	use: function(plugin) {
+		var isapp = Application.isApp(plugin),
+			isclass = Application.isClass(plugin),
+			isplugin = !isclass && _.isFunction(plugin);
 
-		// set up initial state
-		this._modifyState(this.INIT);
+		if (!isapp && !isclass && !isplugin) {
+			throw new Error("Expecting function or application for plugin.");
+		}
+
+		var args = _.toArray(arguments).slice(1);
+		this.init(function() {
+			if (isplugin) return this.ready(plugin.bind(this, args));
+			if (isclass) plugin = plugin.apply(null, args);
+			plugin.parent = this;
+			this.syncState(plugin);
+			plugin.trigger("mount", this);
+		});
 
 		return this;
 	},
 
-	use: function(plugin) {
-		var isapp = Application.isApp(plugin);
+	// forces this app to sync states with a different app.
+	// basically this app won't hit a future state until the other app does.
+	syncState: function(app) {
+		if (this._waitingFor == null) this._waitingFor = [];
+		if (_.contains(this._waitingFor, app)) return this;
+		this._waitingFor.push(app);
 
-		if (!isapp && !_.isFunction(plugin)) {
-			throw new Error("Expecting function or application for plugin.");
+		if (app.state >= this.state) {
+			this.once("state", this.syncState.bind(this, app));
+			return;
 		}
 
-		// check if plugin is already loaded on this template
-		if (this._plugins == null) this._plugins = [];
-		if (~this._plugins.indexOf(plugin)) return this;
-		this._plugins.push(plugin);
-
-		var args = _.toArray(arguments).slice(1);
-		this.init(function() {
-			if (isapp) plugin.start.apply(plugin, [this].concat(args));
-			else plugin.apply(this, args);
+		var wait = this.wait();
+		app.once("state", function() {
+			// only continue if the state isn't an error
+			if (app.state !== app.FAIL) {
+				wait();
+				this.once("state", this.syncState.bind(this, app));
+			}
 		});
 
 		return this;
@@ -279,40 +308,49 @@ _.extend(Application.prototype, Backbone.Events, {
 		var val, app = this;
 
 		while (app != null) {
-			val = Application.merge(val, objectPath.get(app.options, key), true);
+			val = merge(val, objectPath.get(app.options, key), true);
 			app = app.parent;
 		}
 
 		return val;
 	},
 
-	_set: function(obj, safe) {
-		if (_.isString(obj)) this.load(obj, safe);
-		if (_.isObject(obj)) this.options = merge(this.options, obj, safe);
-	},
+	_set: function(key, val, reset, safe) {
+		var root = key == null;
 
-	set: function() {
-		_.each(arguments, function(o) { this._set(o, false); }, this);
+		// prevent accidental annihilation
+		if (root && val == null) val = {};
+
+		var cval = root ? this.options : this.get(key);
+		var nval = reset ? val : merge(cval, val, safe);
+
+		if (cval !== nval) {
+			if (root) this.options = nval;
+			else objectPath.set(this.options, key, nval);
+		}
+
 		return this;
 	},
 
-	defaults: function() {
-		_.each(arguments, function(o) { this._set(o, true); }, this);
-		return this;
+	unset: function(key) {
+		return this._set(key, void 0, true);
 	},
 
 	load: function(file, safe) {
 		if (this.isClient) return this;
 		var fpath, cwd = this.get("cwd");
 
-		// look up file path
-		try {
-			fpath = resolve.sync("./" + file, { basedir: cwd });
-		} catch(e) { try {
+		// look up as a local file path
+		if (!/^\.{0,2}(?:$|\/)/.test(file) ||
+			fs.existsSync("./" + file)) fpath = "./" + file;
+
+		// or attempt to resolve like require does
+		else { try {
 			fpath = resolve.sync(file, { basedir: cwd });
 		} catch(e) {} }
 
-		if (fpath) this._set(require(fpath), safe);
+		// if the filepath exists, set the data
+		if (fpath) this._set(null, require(fpath), false, safe);
 
 		return this;
 	},
@@ -325,15 +363,6 @@ _.extend(Application.prototype, Backbone.Events, {
 
 	relative: function(to) {
 		return path.relative(this.get("cwd"), to);
-	},
-
-	getBrowserOptions: function() {
-		var options = {};
-		var keys = this.get("browserKeys");
-		if (!_.isArray(keys)) keys = keys != null ? [ keys ] : [];
-		keys.forEach(function(k) { objectPath.set(options, k, this.get(k)); }, this);
-		merge.extend(options, this.get("browserOptions"));
-		return options;
 	},
 
 	// sets up the application for a new state
@@ -349,15 +378,8 @@ _.extend(Application.prototype, Backbone.Events, {
 		// set the new state
 		this.state = newState;
 
-		// assign wait if not failing
-		if (this.state !== this.FAIL && this.state < this.RUNNING) {
-			this.wait = asyncWait(_.once(function() {
-				// only bump state if we are not failing
-				if (this.state !== this.FAIL && this.state < this.RUNNING) {
-					this._modifyState(this.state + 1);
-				}
-			}), this);
-		}
+		// wait for the next tick
+		process.nextTick(this.wait());
 
 		// annouce the change
 		this._announceState();
@@ -400,27 +422,58 @@ _.extend(Application.prototype, Backbone.Events, {
 	}
 });
 
-// a few utilities
-_.extend(Application, {
-
-	// defines protected, immutable properties
-	assignProps: function(obj, props) {
-		_.each(props, function(val, key) {
-			var opts = {
-				configurable: false,
-				enumerable: true
-			};
-
-			if (typeof val === "function") opts.get = val;
-			else {
-				opts.value = val;
-				opts.writable = false;
-			}
-
-			Object.defineProperty(obj, key, opts);
-		});
+// assign protected props
+Application.assignProps(Application.prototype, {
+	isMaster: !hasClusterSupport || cluster.isMaster,
+	isWorker: hasClusterSupport && cluster.isWorker,
+	isClient: typeof window !== "undefined",
+	isServer: typeof window === "undefined",
+	hasClusterSupport: function() {
+		return Boolean(this.get("threads") && hasClusterSupport);
 	},
+	isRoot: function() {
+		return this.parent == null;
+	},
+	fullname: function() {
+		var fullname = this.name;
+		var app = this.parent;
 
-	merge: merge
+		// get the full name by look up the parents
+		while (app != null) {
+			fullname = app.name + ":" + fullname;
+			app = app.parent;
+		}
 
+		return fullname;
+	}
+});
+
+// create options setter methods
+_.each({
+	reset: [ true ],
+	set: [ false, false ],
+	defaults: [ false, true ]
+}, function(args, method) {
+	Application.prototype[method] = function(key, val) {
+		if (typeof key === "object") {
+			val = key;
+			key = null;
+		}
+
+		this._set.apply(this, [ key, val ].concat(args));
+
+		return this;
+	}
+});
+
+// synonyms
+_.each({
+	"syncState": [ "waitFor", "waitForApplication" ],
+	"use": [ "plugin" ]
+}, function(s, n) {
+	s.forEach(function(sn, n) {
+		Application.prototype[sn] = function() {
+			return this[n].apply(this, arguments);
+		}
+	});
 });

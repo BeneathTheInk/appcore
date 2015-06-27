@@ -15,7 +15,6 @@
 		"url": "https://beneaththeink.git.beanstalkapp.com/appcore.git"
 	},
 	"dependencies": {
-		"alphanumeric-id": "~1.0.0",
 		"asyncwait": "~1.0.2",
 		"backbone": "~1.2.0",
 		"debug": "~2.2.0",
