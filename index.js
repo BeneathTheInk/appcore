@@ -84,6 +84,12 @@ Application.isClass = function(klass) {
 	return Boolean(_.isFunction(klass) && klass.prototype.__appcore);
 }
 
+Application.defaults = {
+	log: true,
+	cwd: process.browser ? "/" : process.cwd(),
+	env: process.env.NODE_ENV || "development"
+};
+
 var log_levels = Application.log_levels = {
 	ALL: -1,
 	ERROR: 0,
@@ -143,27 +149,9 @@ _.extend(Application.prototype, Backbone.Events, {
 		// set the default name
 		if (this.name == null) this.name = this.id;
 
-		var cwd = process.browser ? "/" : process.cwd();
-		var env = process.env.NODE_ENV || "development";
-
-		// default options
-		this.defaults({
-			log: true,
-			cwd: cwd,
-			env: env
-		});
-
 		// add logging methods
 		this.setupLoggers();
-
-		// set up if attached to a parent
-		this.on("mount", function() {
-			this.setupLoggers();
-
-			// options that, unless explicitly set, are inherited from parent
-			if (this.get("cwd") === cwd) this.unset("cwd");
-			if (this.get("env") === env) this.unset("env");
-		});
+		this.on("mount", this.setupLoggers);
 
 		// clustering
 		if (hasClusterSupport) this.cluster = cluster;
@@ -181,12 +169,12 @@ _.extend(Application.prototype, Backbone.Events, {
 	},
 
 	setupLoggers: function() {
-		var log, logLevel, fullname;
+		var log, enabled, logLevel, fullname;
 
 		// auto-enable logging before we make loggers
 		fullname = this.fullname;
-		log = this.get("log");
-		if (log) debug.names.push(new RegExp("^" + fullname));
+		enabled = this.get("log");
+		if (enabled) debug.names.push(new RegExp("^" + fullname));
 
 		// parse the log level
 		logLevel = this.get("logLevel");
@@ -194,26 +182,24 @@ _.extend(Application.prototype, Backbone.Events, {
 		if (typeof logLevel !== "number" || isNaN(logLevel)) logLevel = -1;
 
 		// make main logger
-		this.log = debug(fullname);
+		log = this.log = debug(fullname);
 
 		// set up each log level
 		_.each(Application.log_levels, function(lvl, name) {
 			if (lvl < 0) return;
-			this.log[name.toLowerCase()] = logLevel < 0 || logLevel >= lvl ?
+			log[name.toLowerCase()] = logLevel < 0 || logLevel >= lvl ?
 				debug(fullname + " [" + name + "]") :
 				function(){};
-		}, this);
+		});
 
-		// add cluster and root specific loggers
+		// add special loggers
 		_.each({
-			master: this.isMaster,
-			worker: this.isWorker,
-			root: this.isRoot,
-			masterRoot: this.isMaster && this.isRoot,
-			rootMaster: this.isRoot && this.isMaster
+			client: this.isClient,
+			server: this.isServer,
+			root: this.isRoot
 		}, function(enabled, prop) {
-			this.log[prop] = enabled ? (this.log.info || this.log) : function(){};
-		}, this);
+			log[prop] = enabled ? (log.info || log) : function(){};
+		});
 	},
 
 	use: function(plugin) {
@@ -311,6 +297,9 @@ _.extend(Application.prototype, Backbone.Events, {
 			val = merge(val, objectPath.get(app.options, key), true);
 			app = app.parent;
 		}
+
+		// merge the super default value
+		val = merge(val, objectPath.get(Application.defaults, key), true);
 
 		return val;
 	},
@@ -424,13 +413,8 @@ _.extend(Application.prototype, Backbone.Events, {
 
 // assign protected props
 Application.assignProps(Application.prototype, {
-	isMaster: !hasClusterSupport || cluster.isMaster,
-	isWorker: hasClusterSupport && cluster.isWorker,
 	isClient: typeof window !== "undefined",
 	isServer: typeof window === "undefined",
-	hasClusterSupport: function() {
-		return Boolean(this.get("threads") && hasClusterSupport);
-	},
 	isRoot: function() {
 		return this.parent == null;
 	},
