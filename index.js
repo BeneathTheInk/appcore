@@ -2,14 +2,11 @@ var _ = require("underscore"),
 	path = require("path"),
 	Backbone = require("backbone"),
 	debug = require("debug"),
-	cluster = require("cluster"),
 	objectPath = require("object-path"),
 	asyncWait = require("asyncwait"),
 	resolve = require("resolve"),
 	fs = require("fs"),
 	merge = require("plain-merge");
-
-var hasClusterSupport = cluster.Worker != null;
 
 var Application =
 module.exports = function() {
@@ -157,9 +154,6 @@ _.extend(Application.prototype, Backbone.Events, {
 		// add logging methods
 		this.setupLoggers();
 		this.on("mount", this.setupLoggers);
-
-		// clustering
-		if (hasClusterSupport) this.cluster = cluster;
 
 		// create the wait method
 		this.wait = asyncWait(function() {
