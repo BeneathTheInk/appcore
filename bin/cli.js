@@ -21,6 +21,7 @@ if (argv.version === true) {
 	process.exit(0);
 }
 
+var _ = require("underscore");
 var Appcore = require("../");
 var resolve = require("resolve");
 var fs = require("fs");
@@ -45,23 +46,34 @@ try {
 			fpath = resolve.sync(file, { basedir: cwd });
 		} catch(e) {} }
 
-		if (fpath == null) throw new Error("Could not locate '" + n + "'");
+		if (fpath == null) throw new Error("Could not locate '" + file + "'");
 
 		return fpath;
 	}).map(function(n) {
 		return require(n);
 	});
 
-	if (plugins.length === 1 && Appcore.isClass(plugins[0])) {
-		app = plugins[0](argv);
-	} else if (plugins.length === 1 && Appcore.isApp(plugins[0])) {
-		app = plugins[0];
-		app.set(argv);
-	} else {
+	if (plugins.length === 1) plugins = plugins[0];
+
+	if (Appcore.isClass(plugins)) app = plugins();
+	else if (Appcore.isApp(plugins)) app = plugins;
+	else {
 		app = Appcore();
-		app.set(argv);
-		plugins.forEach(function(p) { app.use(p); });
+		plugins = [].concat(plugins);
 	}
+
+	// apply each config file in order
+	_.compact([].concat(argv.config)).forEach(function(config) {
+		app.load(config);
+	});
+
+	// apply raw argv last
+	app.set(argv);
+
+	// add all the plugins
+	if (_.isArray(plugins)) plugins.forEach(function(plugin) {
+		app.use(plugin);
+	});
 } catch(e) {
 	console.log(e.stack || e.toString());
 }

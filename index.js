@@ -101,10 +101,15 @@ var log_levels = Application.log_levels = {
 // ascending state values
 var state_constants = Application.states = {
 	FAIL: 0,
-	INIT: 1,
-	READY: 2,
-	RUNNING: 3
+	PREBOOT: 1,
+	STARTUP: 2,
+	READY: 3,
+	RUNNING: 4
 }
+
+Application.STATE_ERROR = state_constants.FAIL;
+Application.STATE_BEGIN = state_constants.PREBOOT;
+Application.STATE_END = state_constants.RUNNING;
 
 // attach constants directly to instances and class
 _.extend(Application, state_constants);
@@ -159,13 +164,13 @@ _.extend(Application.prototype, Backbone.Events, {
 		// create the wait method
 		this.wait = asyncWait(function() {
 			// only bump state if we are not failing
-			if (this.state !== this.FAIL && this.state < this.RUNNING) {
+			if (this.state !== Application.STATE_ERROR && this.state < Application.STATE_END) {
 				this._modifyState(this.state + 1);
 			}
 		}, this);
 
 		// set the state immediately to init
-		this._modifyState(this.INIT);
+		this._modifyState(Application.STATE_BEGIN);
 	},
 
 	setupLoggers: function() {
@@ -212,8 +217,8 @@ _.extend(Application.prototype, Backbone.Events, {
 		}
 
 		var args = _.toArray(arguments).slice(1);
-		this.init(function() {
-			if (isplugin) return this.ready(plugin.bind(this, args));
+		this.preboot(function() {
+			if (isplugin) return this.startup(plugin.bind(this, args));
 			if (isclass) plugin = plugin.apply(null, args);
 			plugin.parent = this;
 			this.syncState(plugin);
@@ -238,7 +243,7 @@ _.extend(Application.prototype, Backbone.Events, {
 		var wait = this.wait();
 		app.once("state", function() {
 			// only continue if the state isn't an error
-			if (app.state !== app.FAIL) {
+			if (app.state !== Application.STATE_ERROR) {
 				wait();
 				this.once("state", this.syncState.bind(this, app));
 			}
@@ -329,9 +334,9 @@ _.extend(Application.prototype, Backbone.Events, {
 		if (this.isClient) return this;
 		var fpath, cwd = this.get("cwd");
 
-		// look up as a local file path
-		if (!/^\.{0,2}(?:$|\/)/.test(file) ||
-			fs.existsSync("./" + file)) fpath = "./" + file;
+		// look up as a relative file
+		if (!/^\.{0,2}(?:$|\/)/.test(file) &&
+			fs.existsSync(path.join(cwd, file))) fpath = path.join(cwd, file);
 
 		// or attempt to resolve like require does
 		else { try {
@@ -397,12 +402,12 @@ _.extend(Application.prototype, Backbone.Events, {
 
 	// sets the app into fail mode when there are errors
 	_handleErrors: function(isAfter) {
-		var inRange = (!isAfter && this.state < this.RUNNING) ||
-			(isAfter && this.state <= this.RUNNING);
+		var inRange = (!isAfter && this.state < Application.STATE_END) ||
+			(isAfter && this.state <= Application.STATE_END);
 
 		if (inRange && this._errors && this._errors.length) {
 			this.log("Errors preventing startup.");
-			this.state = this.FAIL;
+			this.state = Application.STATE_ERROR;
 			this._announceState();
 			return true;
 		}
@@ -415,6 +420,9 @@ _.extend(Application.prototype, Backbone.Events, {
 Application.assignProps(Application.prototype, {
 	isClient: typeof window !== "undefined",
 	isServer: typeof window === "undefined",
+	env: function() {
+		return this.get("env");
+	},
 	isRoot: function() {
 		return this.parent == null;
 	},
