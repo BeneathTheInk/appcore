@@ -43,15 +43,15 @@ app.use(function() {
 app.use(Appcore("myotherapp"));
 ```
 
-Every app has a life-cycle, maintained through a series of states, starting with initiation and ending when the app is fully running. A plugin has the ability to perform actions on every particular state change and can prevent the app from entering the next state. In this way, app can be initiated asynchronously and without interference.
+Every app has a life-cycle, maintained through a series of states, starting with boot and ending when the app is fully running. Applications always want to enter the next state and will automatically do so unless prevented by a plugin using the `wait()` method. In this way, app functionality can be initiated asynchronously, without interference from other plugins. The only exception to this is the `FAIL` and `RUNNING` states which remain indefinitely.
 
-An app has a total of 3 executing states and one error state, `FAIL`. An app will only enter the failing state if it hasn't reached the `RUNNING` state. Otherwise, it's just a normal error. Here is the order events are performed in:
+An app has a total of 4 executing states and one error state, `FAIL`. An app will only enter the failing state if it hasn't reached the `RUNNING` state. Otherwise, it's just a normal error. Here is the order events are performed in:
 
 ```txt
-INIT -> READY -> RUNNING
+PREBOOT -> STARTUP -> READY -> RUNNING
 ```
 
-As a plugin, you can listen for a particular state change by using the quick methods of the same name. These methods are special in that if the app is already at that state or later, the function is executed immediately. All the states have the equivalent methods.
+Applications are started immediately in the `PREBOOT` state. The `.use()` method will execute plugins when the app enters the `STARTUP` state, at least one tick later. As a plugin, you can listen for future state by using the quick methods of the same name. These methods are special in that if the app is already at that state or later, the function is executed immediately. All the states have the equivalent methods.
 
 ```js
 app.use(function() {
@@ -61,23 +61,57 @@ app.use(function() {
 });
 ```
 
-An app will automatically move on to the next state on the next tick unless prevented by a plugin. The only exception to this is `RUNNING` which will remain the state indefinitely.
-
-As a plugin, you can prevent the app from moving to the next state by using `app.wait()` to create a wait method that can be used asynchronously. In the below example, the ready function will not be called until the async task is finished.
+As a plugin, you can prevent the app from moving to the next state by using `app.wait()` to create a wait method that can be used asynchronously. In the below example, the `.next()` function will not be called until the async task is finished.
 
 ```js
 app.use(function() {
-	doSomethingAysnc(app.wait());
-	app.ready(function() {
-		app.log("waited for something async");
+	doSomethingAysnc(app.wait(function(err) {
+		// app enters FAIL state
+		if (err) return app.error(err);
+
+		// or app continues
+		app.log("did something async.");
+	}));
+
+	// log on the next state, READY
+	app.next(function() {
+		app.log("app has entered the next state!");
 	});
 });
 ```
 
-Once all the plugins have been assigned to the application, call `app.start()` with configuration to launch it:
+Once an application is constructed it will continue running until told not to. Make sure to apply all configuration before the `STARTUP` state, so plugins get the correct information when run.
 
 ```js
-app.start({ log: true });
+// guaranteed to run before plugins
+app.preboot(function() {
+	// applied synchronously
+	app.set("myplugin", { do: "something" });
+
+	// or asynchronously
+	getAsyncConfig(app.wait(function(err, config) {
+		if (err) return app.error(err);
+		app.set(config);
+	}));
+});
+
+// will wait until async config has loaded
+app.use(function() {
+	var options = app.get("myplugin");
+});
+```
+
+Application can be created as classes, so they can be extended and reused. Use the `.create()` or `.extend()` methods:
+
+```js
+var Subapp = Appcore.create("my app", function(options) {
+	this.set(options);
+	this.use(function() {
+		this.log("A custom application.");
+	});
+});
+
+var app = Subapp({ init: "config" });
 ```
 
 ## Building A UMD Bundle

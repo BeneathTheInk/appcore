@@ -279,6 +279,11 @@ _.extend(Application.prototype, Backbone.Events, {
 		return this;
 	},
 
+	// does nothing in failing or running state
+	next: function(fn) {
+		return this.onState(this.state + 1, fn);
+	},
+
 	error: function(err) {
 		if (this._errors == null) this._errors = [];
 		this._errors.push(err);
@@ -461,7 +466,8 @@ _.each({
 // synonyms
 _.each({
 	"syncState": [ "waitFor", "waitForApplication" ],
-	"use": [ "plugin" ]
+	"use": [ "plugin" ],
+	"next": [ "nextState" ]
 }, function(s, n) {
 	s.forEach(function(sn, n) {
 		Application.prototype[sn] = function() {
