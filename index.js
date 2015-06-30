@@ -212,7 +212,7 @@ _.extend(Application.prototype, Backbone.Events, {
 
 		var args = _.toArray(arguments).slice(1);
 		this.preboot(function() {
-			if (isplugin) return this.startup(plugin.bind(this, args));
+			if (isplugin) return this.startup(plugin.bind.apply(plugin, [this].concat(args)));
 			if (isclass) plugin = plugin.apply(null, args);
 			plugin.parent = this;
 			this.syncState(plugin);
@@ -306,6 +306,15 @@ _.extend(Application.prototype, Backbone.Events, {
 		val = merge(val, objectPath.get(Application.defaults, key), true);
 
 		return val;
+	},
+
+	getBrowserOptions: function() {
+		var options = {};
+		var keys = this.get("browserKeys");
+		if (!_.isArray(keys)) keys = keys != null ? [ keys ] : [];
+		keys.forEach(function(k) { objectPath.set(options, k, this.get(k)); }, this);
+		merge.extend(options, this.get("browserOptions"));
+		return options;
 	},
 
 	_set: function(key, val, reset, safe) {
@@ -461,9 +470,10 @@ _.each({
 _.each({
 	"syncState": [ "waitFor", "waitForApplication" ],
 	"use": [ "plugin" ],
-	"next": [ "nextState" ]
+	"next": [ "nextState" ],
+	"startup": [ "init" ]
 }, function(s, n) {
-	s.forEach(function(sn, n) {
+	s.forEach(function(sn) {
 		Application.prototype[sn] = function() {
 			return this[n].apply(this, arguments);
 		}
