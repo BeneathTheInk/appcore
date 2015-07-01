@@ -6,7 +6,7 @@ module.exports = function(grunt) {
 		browserify: {
 			dist: {
 				src: "index.js",
-				dest: "dist/application.js",
+				dest: "dist/appcore.js",
 				options: {
 					external: [ "jquery" ],
 					browserifyOptions: { standalone: "Appcore" }
@@ -14,7 +14,7 @@ module.exports = function(grunt) {
 			},
 			dev: {
 				src: "index.js",
-				dest: "dist/application.dev.js",
+				dest: "dist/appcore.dev.js",
 				options: {
 					external: [ "jquery" ],
 					browserifyOptions: { debug: true, standalone: "Appcore" }
@@ -23,24 +23,24 @@ module.exports = function(grunt) {
 		},
 		wrap2000: {
 			dist: {
-				src: 'dist/application.js',
-				dest: 'dist/application.js',
+				src: 'dist/appcore.js',
+				dest: 'dist/appcore.js',
 				options: {
-					header: "/*\n * Application Core\n * (c) 2014-2015 Beneath the Ink, Inc.\n * MIT License\n * Version <%= pkg.version %>\n */\n"
+					header: "/*\n * Appcore \n * (c) 2014-2015 Beneath the Ink, Inc.\n * MIT License\n * Version <%= pkg.version %>\n */\n"
 				}
 			},
 			dev: {
-				src: 'dist/application.dev.js',
-				dest: 'dist/application.dev.js',
+				src: 'dist/appcore.dev.js',
+				dest: 'dist/appcore.dev.js',
 				options: {
-					header: "/*\n * Application Core (with Source Maps)\n * (c) 2014-2015 Beneath the Ink, Inc.\n * MIT License\n * Version <%= pkg.version %>\n */\n"
+					header: "/*\n * Appcore (with Source Maps)\n * (c) 2014-2015 Beneath the Ink, Inc.\n * MIT License\n * Version <%= pkg.version %>\n */\n"
 				}
 			}
 		},
 		uglify: {
 			dist: {
-				src: "dist/application.js",
-				dest: "dist/application.min.js"
+				src: "dist/appcore.js",
+				dest: "dist/appcore.min.js"
 			}
 		}
 	});
