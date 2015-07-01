@@ -84,7 +84,8 @@ Application.isClass = function(klass) {
 Application.defaults = {
 	log: true,
 	cwd: process.browser ? "/" : process.cwd(),
-	env: process.env.NODE_ENV || "development"
+	env: process.env.NODE_ENV || "development",
+	browserKeys: [ "log", "env" ]
 };
 
 var log_levels = Application.log_levels = {
