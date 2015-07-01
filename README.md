@@ -45,7 +45,7 @@ app.use(Appcore("myotherapp"));
 
 Every app has a life-cycle, maintained through a series of states, starting with boot and ending when the app is fully running. Applications always want to enter the next state and will automatically do so unless prevented by a plugin using the `wait()` method. In this way, app functionality can be initiated asynchronously, without interference from other plugins. The only exception to this is the `FAIL` and `RUNNING` states which remain indefinitely.
 
-An app has a total of 4 executing states and one error state, `FAIL`. An app will only enter the failing state if it hasn't reached the `RUNNING` state. Otherwise, it's just a normal error. Here is the order events are performed in:
+An app has a total of 4 executing states and one error state, `FAIL`. An app will only enter the failing state if it hasn't reached the `RUNNING` state. After the running state, errors are handled as normal. Here is the order events are performed in:
 
 ```txt
 PREBOOT -> STARTUP -> READY -> RUNNING
