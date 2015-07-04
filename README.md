@@ -35,11 +35,12 @@ var app = Appcore("myapp");
 Appcore only helps to maintain large application infrastructure and makes no assumptions about the types of things an application might be doing. Appcore requires all functionality to be "adapted" through plugins so it can maintain compatibility with the rest of the system. Fortunately, plugins are easy to add:
 
 ```js
+// plugins are functions
 app.use(function() {
 	app.log("This is my plugin!");
 });
 
-// everything is a plugin, even other apps
+// or other apps
 app.use(Appcore("myotherapp"));
 ```
 
@@ -54,7 +55,13 @@ PREBOOT -> STARTUP -> READY -> RUNNING
 Applications are started immediately in the `PREBOOT` state. The `.use()` method will execute plugins when the app enters the `STARTUP` state, at least one tick later. As a plugin, you can listen for future state by using the quick methods of the same name. These methods are special in that if the app is already at that state or later, the function is executed immediately. All the states have the equivalent methods.
 
 ```js
-app.use(function() {
+// log when app is ready
+app.ready(function() {
+	app.log("My plugin is ready!");
+});
+
+// above is the equivalent of
+app.startup(function() {
 	app.ready(function() {
 		app.log("My plugin is ready!");
 	});
