@@ -27,9 +27,9 @@
 		"grunt-browserify": "~3.8.0",
 		"grunt-cli": "~0.1.13",
 		"grunt-contrib-clean": "~0.6.0",
+		"grunt-contrib-concat": "~0.5.1",
 		"grunt-contrib-uglify": "~0.9.1",
 		"grunt-lodash": "~0.4.0",
-		"grunt-wrap2000": "~0.1.0",
 		"lodash-cli": "~3.10.0"
 	},
 	"scripts": {
