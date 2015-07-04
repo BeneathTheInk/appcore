@@ -2,7 +2,17 @@ module.exports = function(grunt) {
 
 	grunt.initConfig({
 		pkg: grunt.file.readJSON('package.json'),
-		clean: [ "dist/*.js" ],
+		clean: [ "dist/", "vendor/" ],
+		lodash: {
+			mini: {
+				dest: "vendor/lodash.js",
+				options: {
+					modifier: 'modern',
+					include: [ "uniqueId", "extend", "each", "isFunction", "isString", "toArray", "contains" ],
+					flags: [ "development" ]
+				}
+			}
+		},
 		browserify: {
 			dist: {
 				src: "index.js",
@@ -22,18 +32,16 @@ module.exports = function(grunt) {
 			}
 		},
 		wrap2000: {
-			dist: {
-				src: 'dist/appcore.js',
-				dest: 'dist/appcore.js',
+			main: {
+				files: [{
+					expand: true,
+					cwd: "dist/",
+					src: [ "*.js" ],
+					dest: "dist/",
+					isFile: true
+				}],
 				options: {
 					header: "/*\n * Appcore \n * (c) 2014-2015 Beneath the Ink, Inc.\n * MIT License\n * Version <%= pkg.version %>\n */\n"
-				}
-			},
-			dev: {
-				src: 'dist/appcore.dev.js',
-				dest: 'dist/appcore.dev.js',
-				options: {
-					header: "/*\n * Appcore (with Source Maps)\n * (c) 2014-2015 Beneath the Ink, Inc.\n * MIT License\n * Version <%= pkg.version %>\n */\n"
 				}
 			}
 		},
@@ -45,17 +53,20 @@ module.exports = function(grunt) {
 		}
 	});
 
+	grunt.loadNpmTasks('grunt-lodash');
 	grunt.loadNpmTasks('grunt-contrib-clean');
 	grunt.loadNpmTasks('grunt-browserify');
 	grunt.loadNpmTasks('grunt-contrib-uglify');
 	grunt.loadNpmTasks('grunt-wrap2000');
 
-	grunt.registerTask('build-dev', [ 'browserify:dev', 'wrap2000:dev' ]);
-	grunt.registerTask('build-dist', [ 'browserify:dist', 'wrap2000:dist', 'uglify:dist' ]);
+	grunt.registerTask('setup', [ 'clean', 'lodash' ]);
 
-	grunt.registerTask('dev', [ 'clean', 'build-dev' ]);
-	grunt.registerTask('dist', [ 'clean', 'build-dist' ]);
+	grunt.registerTask('build-dev', [ 'browserify:dev' ]);
+	grunt.registerTask('build-dist', [ 'browserify:dist', 'uglify:dist' ]);
 
-	grunt.registerTask('default', [ 'clean', 'build-dist', 'build-dev' ]);
+	grunt.registerTask('dev', [ 'setup', 'build-dev', 'wrap2000' ]);
+	grunt.registerTask('dist', [ 'setup', 'build-dist', 'wrap2000' ]);
+
+	grunt.registerTask('default', [ 'setup', 'build-dist', 'build-dev', 'wrap2000' ]);
 
 }

@@ -64,7 +64,11 @@ try {
 
 	// apply each config file in order
 	_.compact([].concat(argv.config)).forEach(function(config) {
-		app.load(config);
+		try {
+			app.set(require(path.resolve(cwd, config)));
+		} catch(e) {
+			if (argv.verbose) app.log.warn(e.message || e.toString());
+		}
 	});
 
 	// apply raw argv last

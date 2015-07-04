@@ -1,11 +1,9 @@
-var _ = require("underscore"),
-	path = require("path"),
-	Backbone = require("backbone"),
+var _ = require("./vendor/lodash.js"),
+	Events = require("backbone-events-standalone"),
+	subclass = require("backbone-extend-standalone"),
 	debug = require("debug"),
 	objectPath = require("object-path"),
 	asyncWait = require("asyncwait"),
-	resolve = require("resolve"),
-	fs = require("fs"),
 	merge = require("plain-merge");
 
 var Application =
@@ -23,8 +21,8 @@ module.exports = function() {
 // a few utilities
 _.extend(Application, {
 	merge: merge,
-	Events: Backbone.Events,
-	extend: Backbone.Model.extend,
+	Events: Events,
+	extend: subclass,
 
 	construct: function(args) {
 		var app = Object.create(this.prototype);
@@ -121,7 +119,7 @@ _.each(state_constants, function(v, state) {
 });
 
 // prototype methods/properties
-_.extend(Application.prototype, Backbone.Events, {
+_.extend(Application.prototype, Events, {
 	__appcore: true,
 
 	configure: function(name, options) {
@@ -337,35 +335,6 @@ _.extend(Application.prototype, Backbone.Events, {
 
 	unset: function(key) {
 		return this._set(key, void 0, true);
-	},
-
-	load: function(file, safe) {
-		if (this.isClient) return this;
-		var fpath, cwd = this.get("cwd");
-
-		// look up as a relative file
-		if (!/^\.{0,2}(?:$|\/)/.test(file) &&
-			fs.existsSync(path.join(cwd, file))) fpath = path.join(cwd, file);
-
-		// or attempt to resolve like require does
-		else { try {
-			fpath = resolve.sync(file, { basedir: cwd });
-		} catch(e) {} }
-
-		// if the filepath exists, set the data
-		if (fpath) this._set(null, require(fpath), false, safe);
-
-		return this;
-	},
-
-	resolve: function() {
-		var parts = _.toArray(arguments);
-		parts.unshift(this.get("cwd"));
-		return path.resolve.apply(path, parts);
-	},
-
-	relative: function(to) {
-		return path.relative(this.get("cwd"), to);
 	},
 
 	// sets up the application for a new state
