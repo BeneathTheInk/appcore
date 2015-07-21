@@ -15,10 +15,7 @@
 		"asyncwait": "~1.0.2",
 		"backbone-events-standalone": "~0.2.7",
 		"backbone-extend-standalone": "~0.1.2",
-		"debug": "~2.2.0",
 		"minimist": "~1.1.1",
-		"object-path": "~0.9.2",
-		"plain-merge": "~1.0.1",
 		"resolve": "~1.1.6",
 		"underscore": "~1.8.3"
 	},
