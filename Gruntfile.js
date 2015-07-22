@@ -2,20 +2,10 @@ module.exports = function(grunt) {
 
 	grunt.initConfig({
 		pkg: grunt.file.readJSON('package.json'),
-		clean: [ "dist/", "vendor/" ],
-		lodash: {
-			mini: {
-				dest: "vendor/lodash.js",
-				options: {
-					modifier: 'modern',
-					include: [ "uniqueId", "extend", "each", "isFunction", "isString", "toArray", "contains" ],
-					flags: [ "development" ]
-				}
-			}
-		},
+		clean: [ "dist/" ],
 		browserify: {
 			dist: {
-				src: "index.js",
+				src: "lib/index.js",
 				dest: "dist/appcore.js",
 				options: {
 					browserifyOptions: { standalone: "Appcore" }
@@ -50,9 +40,8 @@ module.exports = function(grunt) {
 	grunt.loadNpmTasks('grunt-contrib-uglify');
 	grunt.loadNpmTasks('grunt-contrib-concat');
 
-	grunt.registerTask('setup', [ 'clean', 'lodash' ]);
 	grunt.registerTask('build', [ 'browserify', 'uglify', 'concat' ]);
-	grunt.registerTask('dist', [ 'setup', 'build' ]);
+	grunt.registerTask('dist', [ 'clean', 'build' ]);
 	grunt.registerTask('default', [ 'dist' ]);
 
 }

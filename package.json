@@ -23,10 +23,10 @@
 		"grunt-contrib-clean": "~0.6.0",
 		"grunt-contrib-concat": "~0.5.1",
 		"grunt-contrib-uglify": "~0.9.1",
-		"grunt-lodash": "~0.4.0",
-		"lodash-cli": "~3.10.0"
+		"tape": "~4.0.1"
 	},
 	"scripts": {
-		"prepublish": "grunt"
+		"prepublish": "grunt",
+		"test": "tape test/*.js"
 	}
 }
