@@ -28,5 +28,6 @@
 	"scripts": {
 		"prepublish": "grunt",
 		"test": "tape test/*.js"
-	}
+	},
+	"license": "MIT"
 }
