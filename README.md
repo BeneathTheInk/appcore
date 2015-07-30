@@ -288,7 +288,7 @@ app.preboot(function() {
 
 ### app.error(err)
 
-Let's the app know that something has gone wrong. `err` can be any kind of error and is added to an internal `app._error` array. The app will emit an `error` event, but will not crash the program. If the app has not reached the `RUNNING` state yet, the app is put into the `FAIL` state on the next state change.
+Let's the app know that something has gone wrong. `err` can be any kind of error and is added to an internal `app._error` array. The app will emit an `error` event with error. If there is nothing listening for errors, the error is thrown. If the app has not reached the `RUNNING` state yet, the app is put into the `FAIL` state on the next state change.
 
 Use [appcore-log](https://beneaththeink.beanstalkapp.com/appcore-log) to log errors passed to this method.
 
