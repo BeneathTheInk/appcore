@@ -9,7 +9,7 @@ Here is a list of existing plugins that can be used with Appcore.
 - [appcore-log](https://beneaththeink.beanstalkapp.com/appcore-log) - Adds standarized console logging methods.
 - [appcore-cli](https://beneaththeink.beanstalkapp.com/appcore-cli) - A CLI tool for running Appcore apps.
 - [appcore-browser](https://beneaththeink.beanstalkapp.com/appcore-browser) - A Node.js API for managing HTML5 Appcore apps.
-- [appcore-router](https://beneaththeink.beanstalkapp.com/appcore-router) - Adds Express for Node.js, Backbone Router for the browser.
+- [appcore-router](https://beneaththeink.beanstalkapp.com/appcore-router) - Adds Express for Node.js, Page for the browser.
 - [appcore-auth](https://beneaththeink.beanstalkapp.com/appcore-auth) - A generic API for authenticating users against different backends.
 - [appcore-files](https://beneaththeink.beanstalkapp.com/appcore-files) - A generic API for handling file data with any kind of storage.
 	- [appcore-s3](https://beneaththeink.beanstalkapp.com/appcore-s3) - An appcore-file adaptor for Amazon S3.
@@ -153,7 +153,7 @@ var app = Appcore("myapp");
 
 Creates an appcore subclass. This is useful when creating an app that needs to used many times in the same environment.
 
-- `name` - Application created with this subclass will have this name. This is optional.
+- `name` - Applications created with this subclass will have this name. This is optional.
 - `configure` - The app's initialization method. This is run as soon as an instance is made, but after the app has entered the preboot state. Arguments passed to the constructor are forwarded to this method.
 - `instanceProps` - An object of properties to attach to the subclass's prototype.
 - `classProps` - An object of properties to attach to directly to the subclass.
@@ -205,25 +205,23 @@ Apps run states in the following order. There is also a `FAIL` state that the ap
 PREBOOT -> STARTUP -> READY -> RUNNING
 ```
 
-This method is a little different from the emitted state events. `onState()` does what is known as recursive eventing. Instead of listening for the exact state needed, `onState()` listens for the next state and checks if it is the state needed. If so, `fn` is called, otherwise it repeats the process by listening to the next state. This is very important because it leads to reliable, consistent ordering of events.
+This method is a little different from the emitted state events in that it operates with recursive eventing. Instead of listening for the exact state needed, `onState()` listens for the next state and checks if it is the state needed. If so, `fn` is called, otherwise it repeats the process by listening for the next state. This is very important because it leads to consistent ordering of events.
 
-Let's demonstrate this with two examples, one that uses `.on()` and one that uses `.onState()`.
-
-When using the emitted events, the second `state:ready` event is called before the first one because of the order they end up running in. Using these methods can lead to code that is hard to reason about.
+Let's demonstrate recursive eventing with two examples, one that uses `.once()` and one that uses `.onState()`.
 
 ```js
-this.on("state:startup", function() {
-	this.on("state:ready", function() {
+this.once("state:startup", function() {
+	this.once("state:ready", function() {
 		console.log("called second")
 	});
 });
 
-this.on("state:ready", function() {
+this.once("state:ready", function() {
 	console.log("called first");
 });
 ```
 
-The `onState()` method fixes this by forcing the order they are declared in to be the order they are run.
+When using the emitted events, the second `state:ready` event is called before the first one because of the order they end up running in. Using these methods can lead to code that is hard to reason about.
 
 ```js
 this.onState("startup", function() {
@@ -236,6 +234,8 @@ this.onState("ready", function() {
 	console.log("called second");
 });
 ```
+
+The `onState()` method fixes this by forcing the order they are declared in to be the order they are run.
 
 ### app.preboot(fn)
 
@@ -261,15 +261,124 @@ Alias for `app.onState("fail", fn)`.
 
 Calls function `fn` on the next state. If the app is at the `RUNNING` state, `fn` will never be called. This is an alias for `app.onState(app.state + 1, fn)`.
 
-### app.syncState(otherApp)
+### app.wait([ fn ])
 
-Syncs state between `app` and `otherApp`. This makes it so that `app` will never enter a state until `otherApp` has reached that same state.
+Prevents the app from moving to the next state. A function is returned that must be called to release the lock. The app will wait for all existing `wait()` calls and will not proceed to the next state until all of the locks are released.
+
+The wait method accepts a callback function that is called when the lock release function is called. In this way it can act as a wrapper around an asynchronous callback. The callback is called before the app moves to the next state, allowing for further `wait()` calls.
+
+The example below demonstrates how to use the `wait()` method to load configuration asynchronously.
+
+```js
+var fs = require("fs");
+
+// run on preboot, before plugins run
+app.preboot(function() {
+	fs.readFile("./config.json", {
+		encoding: "utf-8"
+	}, app.wait(function(err, data) {
+		// pass error to app so it enters failing state
+		if (err) return app.error(err);
+
+		// load the configuration
+		app.set(JSON.parse(data));
+	}));
+});
+```
 
 ### app.error(err)
 
 Let's the app know that something has gone wrong. `err` can be any kind of error and is added to an internal `app._error` array. The app will emit an `error` event, but will not crash the program. If the app has not reached the `RUNNING` state yet, the app is put into the `FAIL` state on the next state change.
 
 Use [appcore-log](https://beneaththeink.beanstalkapp.com/appcore-log) to log errors passed to this method.
+
+### app.syncState(otherApp)
+
+Syncs state between `app` and `otherApp`. This makes it so that `app` will never enter a state until `otherApp` has reached that same state. This is mostly used to sync states between nested applications.
+
+### app.get([ key ])
+
+Retrieves a value stored in the application's internal configuration by key. `key` can be any complex path string, with parts separated by periods.
+
+```js
+app.get();
+app.get("mykey");
+app.get("foo.bar.baz");
+```
+
+### app.set([ key, ] value)
+
+Sets `value` at `key` in the application configuration. If both the existing value at the key and `value` are plain objects, `value` is copied onto the existing object. Otherwise the `value` replaces whatever was there.
+
+```js
+app.set({ foo: { bar: true });
+app.set("foo", { hello: "world" });
+app.get("foo"); // { bar: true, hello: "world" }
+```
+
+### app.reset([ key, ] value)
+
+Sets `value` at `key` in the application configuration. This is slightly different from `set()` in that no merging takes place, `value` will be the absolute value at `key`.
+
+```js
+app.reset({ foo: { bar: true });
+app.reset("foo", { hello: "world" });
+app.get("foo"); // { hello: "world" }
+```
+
+### app.defaults([ key, ] value)
+
+Sets `value` at `key` in the application configuration if and only if the existing value is undefined. This is like `set()` in that plain objects are merged.
+
+```js
+app.defaults({ foo: { bar: true });
+app.defaults("foo", { bar: "baz" });
+app.get("foo"); // { bar: true }
+```
+
+### app.unset([ key ])
+
+Sets the value at `key` to undefined.
+
+```js
+app.set({ foo: { bar: true });
+app.unset("foo");
+app.get("foo"); // undefined
+```
+
+### app.getBrowserOptions()
+
+Gets the browser safe configuration.
+
+Generally there is configuration on your server that shouldn't be leaked to the client, things like passwords and secrets. To combat this, configuration must be explicitly whitelisted in order to be returned from this method. This can happen in two ways, adding a key to `browserKeys` or by setting a value within `browserOptions`.
+
+```js
+app.set("browserKeys", [ "public", "env" ]);
+app.set("public", { foo: "bar" });
+app.set("browserOptions.hello", "world");
+app.getBrowserOptions(); // { public: { foo: "bar" }, env: "development", hello: "world" }
+```
+
+### app.setBrowserOption([ key, ] value)
+
+Sets `value` at `key` in `browserOptions`. This is sugar for `app.set("browserOptions", value)`.
+
+```js
+app.setBrowserOption("hello", "world");
+app.getBrowserOptions(); // { env: "development", hello: "world" }
+```
+
+### Instance Properties
+
+These properties can be found on all app instances. Besides `app.name`, all properties are non-modifiable.
+
+- `app.name` - The application's generic name. This can be set on the prototype or assigned directly.
+- `app.fullname` - The application's full name, including all parent application names.
+- `app.env` - The app environment as set in the configuration. By default this is `process.env.NODE_ENV`, however it can be set with `app.set("env", "production")`.
+- `app.cwd` - The app's current working directory. By default this is `process.cwd()`, but it can be set with `app.set("cwd", "/my/path")`.
+- `app.isRoot` - Whether or not the app has any parents.
+- `app.isServer` - Whether or not the app is running on the server.
+- `app.isClient` - Whether or not the app is running in a browser.
 
 ## Building A UMD Bundle
 
