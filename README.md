@@ -137,6 +137,140 @@ var Subapp = Appcore.create("my app", function(options) {
 var app = Subapp({ init: "config" });
 ```
 
+## API
+
+### Appcore([ name ])
+
+Creates a new appcore instance and immediately puts it into the `PREBOOT` state.
+
+Applications created with this method are "plain" in that they are configured using the default method. This default sets the `name` as the application's name. If you use `.create()` or set a `configure()` method, you can decide what to do with the arguments passed to the app.
+
+```js
+var app = Appcore("myapp");
+```
+
+### Appcore.create([ name, ] configure[, instanceProps[, classProps ]])
+
+Creates an appcore subclass. This is useful when creating an app that needs to used many times in the same environment.
+
+- `name` - Application created with this subclass will have this name. This is optional.
+- `configure` - The app's initialization method. This is run as soon as an instance is made, but after the app has entered the preboot state. Arguments passed to the constructor are forwarded to this method.
+- `instanceProps` - An object of properties to attach to the subclass's prototype.
+- `classProps` - An object of properties to attach to directly to the subclass.
+
+```js
+// a subclass
+var MyApp = Appcore.create("myapp", function(options) {
+	this.set(options);
+}, {
+	foo: function() {
+		return this.get("foo");
+	}
+});
+
+// make any number of copies
+var app1 = MyApp({ foo: "bar" });
+var app2 = MyApp({ foo: true });
+
+// call your custom method
+app1.foo(); // "bar"
+app2.foo(); // true
+```
+
+### app.use(plugin[, arguments ... ])
+
+Adds a plugin to an application. The plugin should be a function, an Appcore class or an Appcore instance. Arguments are passed through to the plugin. Function plugins are called with the application as context.
+
+Plugins are only run immediately if the application has reached the `STARTUP` state. Since applications start in `PREBOOT`, plugins are usually not run until at least a tick later. This allows the app to be configured asynchronously, before all the plugins.
+
+Plugins generally add functionality to an app. Sometimes this leads to conflicts since plugins can be used more than once on the same application. To prevent conflicts, add a small self-awareness check at the start of the plugin.
+
+```js
+app.use(function() {
+	// check if the variable already exists
+	if (this.myfn) return;
+
+	// add the custom functionality
+	this.myfn = function(){};
+});
+```
+
+### app.onState(state, fn)
+
+Calls the function `fn` when the app is at or past the specified state. `state` can be the string name of the state, or the integer value.
+
+Apps run states in the following order. There is also a `FAIL` state that the app can enter at anytime by calling the `app.error()` method.
+
+```txt
+PREBOOT -> STARTUP -> READY -> RUNNING
+```
+
+This method is a little different from the emitted state events. `onState()` does what is known as recursive eventing. Instead of listening for the exact state needed, `onState()` listens for the next state and checks if it is the state needed. If so, `fn` is called, otherwise it repeats the process by listening to the next state. This is very important because it leads to reliable, consistent ordering of events.
+
+Let's demonstrate this with two examples, one that uses `.on()` and one that uses `.onState()`.
+
+When using the emitted events, the second `state:ready` event is called before the first one because of the order they end up running in. Using these methods can lead to code that is hard to reason about.
+
+```js
+this.on("state:startup", function() {
+	this.on("state:ready", function() {
+		console.log("called second")
+	});
+});
+
+this.on("state:ready", function() {
+	console.log("called first");
+});
+```
+
+The `onState()` method fixes this by forcing the order they are declared in to be the order they are run.
+
+```js
+this.onState("startup", function() {
+	this.onState("ready", function() {
+		console.log("called first")
+	});
+});
+
+this.onState("ready", function() {
+	console.log("called second");
+});
+```
+
+### app.preboot(fn)
+
+Alias for `app.onState("preboot", fn)`.
+
+### app.startup(fn)
+
+Alias for `app.onState("startup", fn)`.
+
+### app.ready(fn)
+
+Alias for `app.onState("ready", fn)`.
+
+### app.running(fn)
+
+Alias for `app.onState("running", fn)`.
+
+### app.fail(fn)
+
+Alias for `app.onState("fail", fn)`.
+
+### app.next(fn)
+
+Calls function `fn` on the next state. If the app is at the `RUNNING` state, `fn` will never be called. This is an alias for `app.onState(app.state + 1, fn)`.
+
+### app.syncState(otherApp)
+
+Syncs state between `app` and `otherApp`. This makes it so that `app` will never enter a state until `otherApp` has reached that same state.
+
+### app.error(err)
+
+Let's the app know that something has gone wrong. `err` can be any kind of error and is added to an internal `app._error` array. The app will emit an `error` event, but will not crash the program. If the app has not reached the `RUNNING` state yet, the app is put into the `FAIL` state on the next state change.
+
+Use [appcore-log](https://beneaththeink.beanstalkapp.com/appcore-log) to log errors passed to this method.
+
 ## Building A UMD Bundle
 
 Grunt is used to build a Browserify bundle from the original source found in `lib/`. When the command below completes, the compiled and minified source will be saved to `dist/` directory. These files can be used with most JavaScript interpreters such as Node.js and browsers.
