@@ -5,9 +5,10 @@ module.exports = function(grunt) {
 		clean: [ "dist/" ],
 		browserify: {
 			dist: {
-				src: "lib/index.js",
+				src: "src/appcore.js",
 				dest: "dist/appcore.js",
 				options: {
+					transform: [ "babelify" ],
 					browserifyOptions: { standalone: "Appcore" }
 				}
 			}
@@ -28,7 +29,7 @@ module.exports = function(grunt) {
 					isFile: true
 				}],
 				options: {
-					banner: "/*\n * Appcore v<%= pkg.version %> \n * (c) 2014-2015 Beneath the Ink, Inc.\n * MIT License\n */\n\n"
+					banner: ""
 				}
 			}
 		}
@@ -43,4 +44,4 @@ module.exports = function(grunt) {
 	grunt.registerTask('dist', [ 'clean', 'build' ]);
 	grunt.registerTask('default', [ 'dist' ]);
 
-}
+};

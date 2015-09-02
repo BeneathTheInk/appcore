@@ -1,6 +1,6 @@
-var _ = require("underscore");
-var objectPath = require("object-path");
-var merge = require("plain-merge");
+import _ from "underscore";
+import objectPath from "object-path";
+import merge from "plain-merge";
 
 module.exports = function() {
 	// fresh options, but could be set prior
@@ -24,13 +24,13 @@ module.exports = function() {
 				key = null;
 			}
 
-			var val = set.apply(null, [ this.options, key, val ].concat(args));
+			val = set.apply(null, [ this.options, key, val ].concat(args));
 			if (key == null) this.options = val;
 
 			return this;
-		}
+		};
 	}, this);
-}
+};
 
 var defaults = module.exports.defaults = {
 	cwd: process.browser ? "/" : process.cwd(),

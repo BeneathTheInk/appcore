@@ -2,25 +2,20 @@ var Appcore = require("../");
 var test = require("tape");
 
 test("apps moves to states in the correct order", function(t) {
-	t.plan(9);
+	t.plan(5);
 
 	var ran = 0;
 	var app = Appcore();
-	t.equal(app.state, Appcore.STATE_BEGIN, "at beginning state");
-	t.equal(app.state, Appcore.states.PREBOOT, "at preboot state");
+	t.equal(app.state, Appcore.STATE_START, "at beginning state");
+	t.equal(app.state, "startup", "at preboot state");
 
-	app.on("state", function(key) {
-		t.equal(app.state, Appcore.states[key.toUpperCase()], "passed state key '" + key + "' matches apps state");
-
+	app.on("state", function() {
 		switch (++ran) {
 			case 1:
-				t.equal(app.state, Appcore.states.STARTUP, "at startup state");
+				t.equal(app.state, "ready", "at ready state");
 				break;
 			case 2:
-				t.equal(app.state, Appcore.states.READY, "at ready state");
-				break;
-			case 3:
-				t.equal(app.state, Appcore.states.RUNNING, "at running state");
+				t.equal(app.state, "running", "at running state");
 				t.equal(app.state, Appcore.STATE_END, "at ending state");
 				t.end();
 				break;
@@ -29,19 +24,14 @@ test("apps moves to states in the correct order", function(t) {
 });
 
 test("app calls helper methods on each state", function(t) {
-	t.plan(8);
+	t.plan(6);
 
 	var app = Appcore();
 	var deferred = false;
 
-	app.preboot(function() {
-		t.pass("app entered preboot state");
-		t.notOk(deferred, "preboot state ran synchronously");
-	});
-
 	app.startup(function() {
 		t.pass("app entered startup state");
-		t.ok(deferred, "startup state ran asynchronously");
+		t.notOk(deferred, "startup state ran synchronously");
 	});
 
 	app.ready(function() {
@@ -114,26 +104,24 @@ test("app.error() puts app into failing state", function(t) {
 		t.fail("entered the next state");
 	});
 
-	try {
-		app.error("some error");
-		t.fail("didn't throw the error");
-	} catch(e) {
-		t.equal(e, "some error", "throws the error");
-	}
+	t.throws(function() {
+		app.error(new Error("some error"));
+	}, /some error/, "throws the error");
 });
 
 test("app.error() doesn't throw if there is an error event", function(t) {
 	t.plan(3);
 
 	var app = Appcore();
+	var err = new Error("some error");
 
 	app.on("error", function(e) {
-		t.equal(e, "some error", "passed correct error through");
+		t.equal(e, err, "passed correct error through");
 	});
 
 	app.startup(function() {
 		t.pass("reached startup state");
-		app.error("some error");
+		app.error(err);
 	});
 
 	app.ready(function() {
