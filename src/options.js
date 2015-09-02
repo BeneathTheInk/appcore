@@ -40,19 +40,10 @@ var defaults = module.exports.defaults = {
 
 function get(key) {
 	// clone the local value so we aren't writing on it
-	var val = merge({}, objectPath.get(this.options, key));
-	var app = this.parent;
-
-	// merge parent values in from the up the tree
-	while (app != null) {
-		val = merge(val, objectPath.get(app.options, key), true);
-		app = app.parent;
-	}
+	var val = merge.extend({}, objectPath.get(this.options, key));
 
 	// merge the super default value
-	val = merge(val, objectPath.get(defaults, key), true);
-
-	return val;
+	return merge.defaults(val, objectPath.get(defaults, key));
 }
 
 function getBrowserOptions() {

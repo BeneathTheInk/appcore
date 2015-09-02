@@ -24,12 +24,14 @@ Appcore.extend = subclass;
 Appcore.defaults = optionsSetup.defaults;
 Appcore.isApp = (obj) => obj.__appcore;
 
+// like the new operator, but for dynamic arguments
 Appcore.construct = function(args) {
 	let app = Object.create(this.prototype);
 	this.apply(app, args);
 	return app;
 };
 
+// sugar for extend with auto-constructor and custom configure
 Appcore.create = function(configure, props, sprops) {
 	if (typeof configure !== "function")
 		throw new Error("Expecting function for configure.");
@@ -57,7 +59,9 @@ assignProps(Appcore.prototype, {
 	isRoot: function() { return this.parent == null; }
 });
 
-Appcore.prototype.configure = function() {};
+Appcore.prototype.configure = function(opts) {
+	this.set(opts);
+};
 
 Appcore.prototype.defaultConfiguration = function() {
 	// create an id
@@ -85,9 +89,7 @@ Appcore.prototype.use = function(fn) {
 	}
 
 	else if (Appcore.isApp(fn)) {
-		this.startup(function() {
-			fn.emit("mount", fn.parent = this);
-		});
+		this.startup(() => fn.emit("mount", fn.parent = this));
 	}
 
 	else if (typeof fn === "function") {
@@ -118,7 +120,7 @@ Appcore.prototype.onState = function(state, fn) {
 	// this makes the API appear as though later events are firing in the
 	// correct order even though they may have been added in inverse.
 	else {
-		this.once("state", () => { this.onState(state, fn); });
+		this.once("state", () => this.onState(state, fn));
 	}
 
 	return this;
@@ -141,8 +143,8 @@ Appcore.prototype.next = function(fn) {
 
 Appcore.prototype.error = function(err) {
 	// push errors onto the error queue
-	if (this._errors == null) this._errors = [];
-	this._errors.push(err);
+	if (this.errors == null) this.errors = [];
+	this.errors.push(err);
 
 	// emit the error
 	this.emit("error", err);
@@ -156,7 +158,7 @@ Appcore.prototype._bumpState = function() {
 
 	if (!states.atState(cur, states.STATE_END)) {
 		// handle any errors since the last state change
-		if (this._errors && this._errors.length) {
+		if (this.errors && this.errors.length) {
 			this.state = states.STATE_ERROR;
 		}
 
