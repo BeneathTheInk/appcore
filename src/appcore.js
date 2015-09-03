@@ -2,7 +2,7 @@ import _ from "underscore";
 import { EventEmitter } from "events";
 import asyncWait from "asyncwait";
 import subclass from "backbone-extend-standalone";
-import assignProps from "./assign-props";
+import assignProps from "assign-props";
 import * as states from "./states";
 import optionsSetup from "./options";
 
