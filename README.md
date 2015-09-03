@@ -7,10 +7,8 @@ This is a JavaScript application framework that allows us to maintain large, com
 Here is a list of existing plugins that can be used with Appcore.
 
 - [appcore-log](https://beneaththeink.beanstalkapp.com/appcore-log) - Adds standarized console logging methods.
-- [appcore-cli](https://beneaththeink.beanstalkapp.com/appcore-cli) - A CLI tool for running Appcore apps.
-- [appcore-browser](https://beneaththeink.beanstalkapp.com/appcore-browser) - A Node.js API for managing HTML5 Appcore apps.
+- [appcore-browser](https://beneaththeink.beanstalkapp.com/appcore-browser) - A helper API for running Appcore in the browser.
 - [appcore-router](https://beneaththeink.beanstalkapp.com/appcore-router) - Adds Express for Node.js, Page for the browser.
-- [appcore-auth](https://beneaththeink.beanstalkapp.com/appcore-auth) - A generic API for authenticating users against different backends.
 - [appcore-files](https://beneaththeink.beanstalkapp.com/appcore-files) - A generic API for handling file data with any kind of storage.
 	- [appcore-s3](https://beneaththeink.beanstalkapp.com/appcore-s3) - An appcore-file adaptor for Amazon S3.
 - [appcore-sendmail](https://beneaththeink.beanstalkapp.com/appcore-sendmail) - A generic API for sending emails.
