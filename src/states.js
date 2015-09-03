@@ -28,7 +28,7 @@ export function atState(actual, expected) {
 	checkState(actual);
 
 	// if they are they same, we are at state
-	// this also catches the fail state in particular
+	// this also catches the fail state
 	if (actual === expected) return true;
 
 	// grab indexes

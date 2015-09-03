@@ -3,8 +3,8 @@ import { EventEmitter } from "events";
 import asyncWait from "asyncwait";
 import subclass from "backbone-extend-standalone";
 import assignProps from "assign-props";
-import * as states from "./states";
-import optionsSetup from "./options";
+import * as $ from "./states";
+import optionsSetup, { defaults } from "./options";
 
 function Appcore() {
 	if (!(this instanceof Appcore)) {
@@ -17,11 +17,10 @@ function Appcore() {
 }
 
 module.exports = Appcore;
-_.extend(Appcore, states);
+_.extend(Appcore, $);
 Appcore.prototype = Object.create(EventEmitter.prototype);
-Appcore.prototype.__appcore = true;
 Appcore.extend = subclass;
-Appcore.defaults = optionsSetup.defaults;
+Appcore.defaults = defaults;
 Appcore.isApp = (obj) => obj.__appcore;
 
 // like the new operator, but for dynamic arguments
@@ -52,6 +51,7 @@ Appcore.create = function(configure, props, sprops) {
 };
 
 assignProps(Appcore.prototype, {
+	__appcore: true,
 	isClient: typeof window !== "undefined",
 	isServer: typeof window === "undefined",
 	env: function() { return this.get("env"); },
@@ -73,8 +73,8 @@ Appcore.prototype.defaultConfiguration = function() {
 	// create the wait method
 	this.wait = asyncWait(function() {
 		// only bump state if we are not failing or running
-		if (states.atState(this.state, states.STATE_END) ||
-			states.isErrorState(this.state)) return;
+		if ($.atState(this.state, $.STATE_END) ||
+			$.isErrorState(this.state)) return;
 
 		this._bumpState();
 	}, this);
@@ -110,7 +110,7 @@ Appcore.prototype.onState = function(state, fn) {
 	}
 
 	// check if we have passed the desired state
-	if (states.atState(this.state, state)) {
+	if ($.atState(this.state, state)) {
 		try { fn.call(this); }
 		catch(e) { this.error(e); }
 	}
@@ -127,18 +127,18 @@ Appcore.prototype.onState = function(state, fn) {
 };
 
 // state methods to call now or on event
-for (let state of states.STATES) {
+for (let state of $.STATES) {
 	Appcore.prototype[state] = function(fn) {
 		this.onState(state, fn);
 	};
 }
 
-Appcore.prototype[states.STATE_ERROR] = function(fn) {
-	return this.onState(states.STATE_ERROR, fn);
+Appcore.prototype[$.STATE_ERROR] = function(fn) {
+	return this.onState($.STATE_ERROR, fn);
 };
 
 Appcore.prototype.next = function(fn) {
-	return this.onState(states.nextState(this.state), fn);
+	return this.onState($.nextState(this.state), fn);
 };
 
 Appcore.prototype.error = function(err) {
@@ -156,18 +156,18 @@ Appcore.prototype.error = function(err) {
 Appcore.prototype._bumpState = function() {
 	let cur = this.state;
 
-	if (!states.atState(cur, states.STATE_END)) {
+	if (!$.atState(cur, $.STATE_END)) {
 		// handle any errors since the last state change
 		if (this.errors && this.errors.length) {
-			this.state = states.STATE_ERROR;
+			this.state = $.STATE_ERROR;
 		}
 
 		// otherwise go to the next state
 		else {
 			// set the new state
 			this.state = cur == null ?
-				states.STATE_START :
-				states.nextState(cur);
+				$.STATE_START :
+				$.nextState(cur);
 
 			// wait for the next tick
 			process.nextTick(this.wait());
