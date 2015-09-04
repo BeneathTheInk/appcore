@@ -1,0 +1,13 @@
+doctype html
+
+html(lang="en")
+	head
+		title= title
+		style(type="text/css")
+			include style.css
+	body
+		.full-center
+			.fixed-width
+				| #{hits} hits
+				br
+				button(onclick="location.reload()") Reload

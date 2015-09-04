@@ -7,6 +7,7 @@ This is a JavaScript application framework that allows us to maintain large, com
 Here is a list of existing plugins that can be used with Appcore.
 
 - [appcore-log](https://beneaththeink.beanstalkapp.com/appcore-log) - Adds standarized console logging methods.
+- [appcore-config](https://beneaththeink.beanstalkapp.com/appcore-config) - Pulls in configuration from the cli and env.
 - [appcore-browser](https://beneaththeink.beanstalkapp.com/appcore-browser) - A helper API for running Appcore in the browser.
 - [appcore-router](https://beneaththeink.beanstalkapp.com/appcore-router) - Adds Express for Node.js, Page for the browser.
 - [appcore-files](https://beneaththeink.beanstalkapp.com/appcore-files) - A generic API for handling file data with any kind of storage.

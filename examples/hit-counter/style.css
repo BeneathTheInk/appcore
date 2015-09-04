@@ -1,0 +1,22 @@
+html, body {
+	height: 100%;
+}
+
+body {
+	margin: 0;
+}
+
+.full-center {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+}
+
+.fixed-width {
+	width: 50%;
+	text-align: center;
+	font-size: 36px;
+	font-weight: bold;
+	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
