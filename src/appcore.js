@@ -71,13 +71,13 @@ Appcore.prototype.defaultConfiguration = function() {
 	this.use(optionsSetup);
 
 	// create the wait method
-	this.wait = asyncWait(function() {
+	this.wait = asyncWait(() => {
 		// only bump state if we are not failing or running
 		if ($.atState(this.state, $.STATE_END) ||
 			$.isErrorState(this.state)) return;
 
 		this._bumpState();
-	}, this);
+	});
 
 	// set the state immediately to init
 	this._bumpState();

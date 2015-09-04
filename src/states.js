@@ -11,7 +11,7 @@ export function isValidState(state) {
 
 export function checkState(state) {
 	if (!isValidState(state)) {
-		throw new Error("Invalid state '" + state + "'.");
+		throw new Error(`Invalid state '${state}'.`);
 	}
 }
 

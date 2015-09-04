@@ -1,6 +1,7 @@
 import _ from "underscore";
 import objectPath from "object-path";
 import merge from "plain-merge";
+import isPlainObject from "is-plain-object";
 
 export default function options() {
 	// fresh options, but could be set prior
@@ -19,14 +20,8 @@ export default function options() {
 		defaults: [ false, true ]
 	}, function(args, method) {
 		this[method] = function(key, val) {
-			if (typeof key === "object") {
-				val = key;
-				key = null;
-			}
-
-			val = set.apply(null, [ this.options, key, val ].concat(args));
-			if (key == null) this.options = val;
-
+			if (isPlainObject(key)) [val, key] = [key, null];
+			this.options = set.apply(null, [ this.options, key, val ].concat(args));
 			return this;
 		};
 	}, this);
@@ -50,16 +45,21 @@ export function getBrowserOptions() {
 	var options = {};
 	var keys = this.get("browserKeys");
 	if (!_.isArray(keys)) keys = keys != null ? [ keys ] : [];
-	keys.forEach(function(k) { objectPath.set(options, k, this.get(k)); }, this);
+	keys.forEach(k => objectPath.set(options, k, this.get(k)));
 	merge.extend(options, this.get("browserOptions"));
 	return options;
 }
 
 export function set(data, key, val, reset, safe) {
-	var root = key == null;
+	var root = key == null || (_.isArray(key) && !key.length);
 
 	// prevent total annihilation of options object
-	if (root && val == null) val = {};
+	if (root) {
+		if (val == null) val = {};
+		else if (!isPlainObject(val)) {
+			throw new Error("Root value must be a plain javascript object.");
+		}
+	}
 
 	var cval = root ? data : objectPath.get(data, key);
 	var nval = reset ? val : merge(cval, val, safe);
@@ -73,17 +73,12 @@ export function set(data, key, val, reset, safe) {
 }
 
 export function unset(key) {
-	var val = set(this.options, key, void 0, true);
-	if (key == null) this.options = val;
+	this.options = set(this.options, key, void 0, true);
 	return this;
 }
 
 export function setBrowserOption(key, val) {
-	if (typeof key === "object") {
-		val = key;
-		key = null;
-	}
-
+	if (isPlainObject(key)) [val, key] = [key, null];
 	var data = this.get("browserOptions");
 	data = set(data, key, val, false, false);
 	return this.set("browserOptions", data);

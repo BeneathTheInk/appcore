@@ -132,3 +132,14 @@ test("app.error() doesn't throw if there is an error event", function(t) {
 		t.pass("entered failing state");
 	});
 });
+
+test("throws error on invalid state", function(t) {
+	t.plan(1);
+	var app = Appcore();
+
+	t.throws(function() {
+		app.onState("notastate", function(){
+			t.fail("ran the state callback");
+		});
+	}, /invalid state/i, "threw invalid state error");
+});
