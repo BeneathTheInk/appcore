@@ -60,7 +60,7 @@ assignProps(Appcore.prototype, {
 });
 
 Appcore.prototype.configure = function(opts) {
-	this.set(opts);
+	this.set([], opts);
 };
 
 Appcore.prototype.defaultConfiguration = function() {

@@ -8,7 +8,6 @@ Here is a list of existing plugins that can be used with Appcore.
 
 - [appcore-log](https://beneaththeink.beanstalkapp.com/appcore-log) - Adds standarized console logging methods.
 - [appcore-config](https://beneaththeink.beanstalkapp.com/appcore-config) - Pulls in configuration from the cli and env.
-- [appcore-browser](https://beneaththeink.beanstalkapp.com/appcore-browser) - A helper API for running Appcore in the browser.
 - [appcore-router](https://beneaththeink.beanstalkapp.com/appcore-router) - Adds Express for Node.js, Page for the browser.
 - [appcore-files](https://beneaththeink.beanstalkapp.com/appcore-files) - A generic API for handling file data with any kind of storage.
 	- [appcore-s3](https://beneaththeink.beanstalkapp.com/appcore-s3) - An appcore-file adaptor for Amazon S3.
@@ -26,7 +25,7 @@ Build a UMD bundle and use via a script tag. The variable `Appcore` will be atta
 ```
 
 ```js
-var app = Appcore("myapp");
+var app = Appcore({ name: "myapp" });
 ```
 
 If using Browserify or Node.js, you can install via Beneath the Ink's private Gemfury NPM registry. See [Gemfury's docs](https://gemfury.com/help/npm-registry) for details on integrating with NPM scopes.
@@ -36,7 +35,7 @@ $ npm install @beneaththeink/appcore
 ```
 
 ```js
-var app = require("@beneaththeink/appcore")("myapp");
+var app = require("@beneaththeink/appcore")({ name: "myapp" });
 ```
 
 ## Usage
@@ -44,7 +43,7 @@ var app = require("@beneaththeink/appcore")("myapp");
 To begin, make a new application instance. You can optionally pass in base configuration.
 
 ```js
-var app = Appcore({ debug: true });
+var app = Appcore({ name: "myapp" });
 ```
 
 Appcore only helps to maintain large application infrastructure and makes no assumptions about the types of things an application might be doing. Appcore requires all functionality to be "adapted" through plugins so it can maintain compatibility with the rest of the system. Fortunately, plugins are easy to add:
@@ -56,7 +55,7 @@ app.use(function() {
 });
 
 // or other apps
-app.use(Appcore("myotherapp"));
+app.use(Appcore({ name: "myotherapp" }));
 ```
 
 Every app has a life-cycle, maintained through a series of states, beginning at startup and ending when the app is fully running. Applications always want to enter the next state and will automatically do so unless prevented by a plugin using the `wait()` method. In this way, app functionality can be initiated asynchronously, without interference from other plugins.
@@ -116,25 +115,26 @@ Application can be created as classes, so they can be extended and reused. This 
 
 ```js
 var Subapp = Appcore.create(function(options) {
+	this.defaults({ name: "myapp" })
 	this.set(options);
 	this.use(function() {
 		console.log("A custom application.");
 	});
 });
 
-var app = Subapp({ init: "config" });
+var app = Subapp();
 ```
 
 ## API
 
-### Appcore([ name ])
+### Appcore([ options ])
 
 Creates a new appcore instance and immediately puts it into the `STARTUP` state.
 
-Applications created with this method are "plain" in that they are configured using the default method, which passes the first argument directly to `.set()`. If you use `.create()` or set a `configure()` method, you can decide what to do with the arguments passed to the app.
+Applications created with this method are "plain" in that they are configured using the default method, which sets the first argument as the base options on the applicaiton. If you use `.create()` or set a `configure()` method, you can decide what to do with the arguments passed to the app.
 
 ```js
-var app = Appcore({ debug: true });
+var app = Appcore({ name: "myapp" });
 ```
 
 ### Appcore.create(configure[, instanceProps[, classProps ]])
@@ -148,6 +148,7 @@ Creates an appcore subclass. This is useful when creating an app that needs to u
 ```js
 // a subclass
 var MyApp = Appcore.create(function(options) {
+	this.defaults({ name: "myapp" });
 	this.set(options);
 }, {
 	foo: function() {
@@ -274,7 +275,7 @@ app.startup(function() {
 	}));
 });
 
-// won't be called till after data is on app
+// won't be called until after data is on app
 app.ready(function() {
 	console.log(app.data);
 });
@@ -340,6 +341,16 @@ app.unset("foo");
 app.get("foo"); // undefined
 ```
 
+__Note:__ Appcore default options cannot be unset, since they are not properties of the application's options. Therefore something like the following will fail silently. Instead, set the value to `null`.
+
+```js
+app.unset("env");
+app.get("env"); // "development"
+
+app.set("env", null);
+app.get("env"); // null
+```
+
 ### app.getBrowserOptions()
 
 Gets browser safe configuration.
@@ -364,7 +375,7 @@ app.getBrowserOptions(); // { env: "development", hello: "world" }
 
 ### Instance Properties
 
-These properties can be found on all app instances. All properties are non-modifiable.
+These properties can be found on all app instances. All properties are immutable.
 
 - `app.env` - The app environment as set in the configuration. By default this is `process.env.NODE_ENV`, however it can be set with `app.set("env", "production")`.
 - `app.cwd` - The app's current working directory. By default this is `process.cwd()`, but it can be set with `app.set("cwd", "/my/path")`.
