@@ -1,5 +1,10 @@
 # Change Log
 
+## v4.0.2 - Sep 5, 2015
+
+- Misc clean up and bug fixes.
+- Made improvements to root options sets.
+
 ## v4.0.1 - Sep 2, 2015
 
 - Moved `assign-props.js` to its own module [assign-props](http://ghub.io/assign-props).
