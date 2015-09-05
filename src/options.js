@@ -57,7 +57,7 @@ export function set(data, key, val, reset, safe) {
 	if (root) {
 		if (val == null) val = {};
 		else if (!isPlainObject(val)) {
-			throw new Error("Root value must be a plain javascript object.");
+			throw new Error("Only plain objects can be set for root options.");
 		}
 	}
 
@@ -79,7 +79,7 @@ export function unset(key) {
 
 export function setBrowserOption(key, val) {
 	if (isPlainObject(key)) [val, key] = [key, null];
-	var data = this.get("browserOptions");
+	var data = this.get("browserOptions") || {};
 	data = set(data, key, val, false, false);
 	return this.set("browserOptions", data);
 }

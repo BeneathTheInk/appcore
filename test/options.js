@@ -3,11 +3,14 @@ var Appcore = require("../");
 var test = require("tape");
 
 test("set() sets root value", function(t) {
-	t.plan(1);
+	t.plan(2);
 	var app = Appcore();
 	var value = { foo: "bar" };
 	app.set(value);
-	t.deepEqual(app.options, value, "root value contains the value set");
+	t.deepEqual(app.options, value, "sets value without key");
+
+	app.set([], { baz: "boom" });
+	t.equal(app.get("baz"), "boom", "sets value with empty array key");
 });
 
 test("set() sets value at key", function(t) {
@@ -33,6 +36,14 @@ test("set() replaces non-plain objects", function(t) {
 	app.set({ foo: "bar" });
 	app.set("foo", value);
 	t.deepEqual(app.options.foo, value, "'foo' value contains the replaced value");
+});
+
+test("set() throws error when setting a value on root that is not a plain object.", function(t) {
+	t.plan(1);
+	var app = Appcore();
+	t.throws(function() {
+		app.set([], "not a plain object");
+	}, void 0, "throws an unexpected value error");
 });
 
 test("reset() replaces root value", function(t) {
@@ -91,4 +102,25 @@ test("get() gets value at key", function(t) {
 	var app = Appcore();
 	app.set({ foo: { bar: "baz" } });
 	t.equal(app.get("foo.bar"), "baz", "gets deep value");
+});
+
+test("getBrowserOptions() returns object of browser safe options", function(t) {
+	t.plan(3);
+	var app = Appcore();
+	t.deepEqual(app.getBrowserOptions(), { env: 'development' }, "gets base browser options");
+
+	app.set("browserKeys", "foo");
+	app.set("foo", "bar");
+	t.deepEqual(app.getBrowserOptions(), { foo: 'bar' }, "gets options with custom key");
+
+	app.set("browserKeys", null);
+	t.deepEqual(app.getBrowserOptions(), {}, "gets options with no key");
+});
+
+test("setBrowserOption() adds key and value to browser safe options", function(t) {
+	t.plan(1);
+	var app = Appcore();
+	app.setBrowserOption("foo", "bar");
+	app.setBrowserOption({ baz: "boom" });
+	t.deepEqual(app.getBrowserOptions(), { env: "development", foo: "bar", baz: "boom" }, "gets browser options");
 });

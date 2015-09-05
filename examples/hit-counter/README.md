@@ -1,6 +1,6 @@
 # Hit Counter
 
-This is an appcore example application that counts page hits.
+This is an Appcore example application that counts page hits.
 
 It uses the following Appcore plugins:
 

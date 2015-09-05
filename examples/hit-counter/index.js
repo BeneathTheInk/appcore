@@ -1,7 +1,7 @@
 var Appcore = require("@beneaththeink/appcore");
 
 // create a new application with a name
-var app = module.exports = Appcore({ name: "simple-website" });
+var app = module.exports = Appcore({ name: "hit-counter" });
 
 // a few plugins, router is the only mandatory one
 app.use(require("@beneaththeink/appcore-config")({
@@ -19,13 +19,13 @@ app.use(function() {
 });
 
 // serves up route with jade template
-app.use(function() {
+app.ready(function() {
 	app.router.set('view engine', 'jade');
 	app.router.set('views', __dirname);
 
 	app.router.get("/", function(req, res) {
 		res.render("home", {
-			title: "A Simple Website",
+			title: "Hit Counter",
 			hits: app.hit()
 		});
 	});
