@@ -1,3 +1,8 @@
+// babel shims
+import "core-js/modules/es6.symbol.js";
+import "core-js/modules/es6.array.iterator.js";
+
+// dependencies
 import _ from "underscore";
 import { EventEmitter } from "events";
 import asyncWait from "asyncwait";
@@ -6,6 +11,7 @@ import assignProps from "assign-props";
 import * as $ from "./states";
 import optionsSetup, { defaults } from "./options";
 
+// main constructor
 function Appcore() {
 	if (!(this instanceof Appcore)) {
 		return Appcore.construct(arguments);
