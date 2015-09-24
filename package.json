@@ -1,6 +1,6 @@
 {
 	"name": "@beneaththeink/appcore",
-	"version": "4.0.2",
+	"version": "4.0.3",
 	"description": "A JavaScript application framework.",
 	"private": true,
 	"main": "lib/appcore.js",
