@@ -3,10 +3,9 @@
 	"description": "A web app that counts the number of page hits.",
 	"version": "1.0.0",
 	"dependencies": {
-		"@beneaththeink/appcore": "4.x",
-		"@beneaththeink/appcore-config": "~1.0.0",
-		"@beneaththeink/appcore-log": "~2.0.0",
-		"@beneaththeink/appcore-router": "~3.0.0",
+		"appcore": "4.x",
+		"appcore-config": "~1.1.0",
+		"appcore-log": "~2.0.0",
 		"jade": "~1.11.0",
 		"underscore": "~1.8.3"
 	},

@@ -6,15 +6,8 @@ This is a JavaScript application framework that allows us to maintain large, com
 
 Here is a list of existing plugins that can be used with Appcore.
 
-- [appcore-log](https://beneaththeink.beanstalkapp.com/appcore-log) - Adds standarized console logging methods.
-- [appcore-config](https://beneaththeink.beanstalkapp.com/appcore-config) - Pulls in configuration from the cli and env.
-- [appcore-router](https://beneaththeink.beanstalkapp.com/appcore-router) - Adds Express for Node.js, Page for the browser.
-- [appcore-files](https://beneaththeink.beanstalkapp.com/appcore-files) - A generic API for handling file data with any kind of storage.
-	- [appcore-s3](https://beneaththeink.beanstalkapp.com/appcore-s3) - An appcore-file adaptor for Amazon S3.
-- [appcore-sendmail](https://beneaththeink.beanstalkapp.com/appcore-sendmail) - A generic API for sending emails.
-	- [appcore-mailgun](https://beneaththeink.beanstalkapp.com/appcore-mailgun) - An appcore-sendmail adaptor for sending emails through Mailgun.
-- [appcore-mongoose](https://beneaththeink.beanstalkapp.com/appcore-mongoose) - Attaches a Mongoose connection and database to the Appcore app.
-- [appcore-sockets](https://beneaththeink.beanstalkapp.com/appcore-sockets) - Adds Websocket support for the browser and the server with Socket.io.
+- [appcore-log](http://ghub.io/appcore-log) - Adds standardized console logging methods.
+- [appcore-config](http://ghub.io/appcore-config) - Pulls in configuration from the cli and env.
 
 ## Install
 
@@ -131,7 +124,7 @@ var app = Subapp();
 
 Creates a new appcore instance and immediately puts it into the `STARTUP` state.
 
-Applications created with this method are "plain" in that they are configured using the default method, which sets the first argument as the base options on the applicaiton. If you use `.create()` or set a `configure()` method, you can decide what to do with the arguments passed to the app.
+Applications created with this method are "plain" in that they are configured using the default method, which sets the first argument as the base options on the application. If you use `.create()` or set a `configure()` method, you can decide what to do with the arguments passed to the app.
 
 ```js
 var app = Appcore({ name: "myapp" });

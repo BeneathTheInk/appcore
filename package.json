@@ -1,12 +1,19 @@
 {
-	"name": "@beneaththeink/appcore",
+	"name": "appcore",
 	"version": "4.0.3",
-	"description": "A JavaScript application framework.",
-	"private": true,
+	"description": "A barebones JavaScript application framework.",
 	"main": "lib/appcore.js",
+	"author": "Beneath the Ink <info@beneaththeink.com>",
+	"contributors": [
+		{
+			"name": "Tyler Johnson",
+			"email": "tyler@beneaththeink.com",
+			"url": "http://github.com/tyler-johnson"
+		}
+	],
 	"repository": {
 		"type": "git",
-		"url": "https://beneaththeink.git.beanstalkapp.com/appcore.git"
+		"url": "https://github.com/BeneathTheInk/appcore.git"
 	},
 	"dependencies": {
 		"assign-props": "~1.0.0",
@@ -40,5 +47,9 @@
 		"build": "grunt",
 		"prepublish": "npm run lint && npm run build"
 	},
-	"license": "MIT"
+	"license": "MIT",
+	"keywords": [
+		"application",
+		"framework"
+	]
 }
