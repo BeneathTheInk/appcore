@@ -1,6 +1,6 @@
 {
 	"name": "appcore",
-	"version": "4.0.3",
+	"version": "4.0.4",
 	"description": "A barebones JavaScript application framework.",
 	"main": "lib/appcore.js",
 	"author": "Beneath the Ink <info@beneaththeink.com>",

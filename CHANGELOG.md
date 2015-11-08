@@ -1,5 +1,9 @@
 # Change Log
 
+## v4.0.4 - Nov 7, 2015
+
+- Public release.
+
 ## v4.0.3 - Sep 24, 2015
 
 - Add shims for ES6 Symbols and Array iterators.
