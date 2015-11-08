@@ -1,4 +1,5 @@
 Gruntfile.js
-.git*
-test/
-src/
+.*
+/test
+/src
+/examples
