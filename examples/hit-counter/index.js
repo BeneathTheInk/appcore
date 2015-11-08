@@ -34,6 +34,6 @@ app.ready(function() {
 
 	var port = this.get("port") || 3000;
 	router.listen(port, function() {
-		this.log("Listening on port %s", port);
+		app.log("Listening on port %s", port);
 	});
 });

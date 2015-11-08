@@ -6,6 +6,7 @@
 		"appcore": "4.x",
 		"appcore-config": "~1.1.0",
 		"appcore-log": "~2.0.0",
+		"express": "~4.13.3",
 		"jade": "~1.11.0",
 		"underscore": "~1.8.3"
 	},
