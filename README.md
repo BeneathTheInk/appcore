@@ -21,10 +21,10 @@ Build a UMD bundle and use via a script tag. The variable `Appcore` will be atta
 var app = Appcore({ name: "myapp" });
 ```
 
-If using Browserify or Node.js, you can install via Beneath the Ink's private Gemfury NPM registry. See [Gemfury's docs](https://gemfury.com/help/npm-registry) for details on integrating with NPM scopes.
+If using Browserify or Node.js, you can install via NPM.
 
 ```sh
-$ npm install appcore
+$ npm install appcore --save
 ```
 
 ```js
@@ -136,7 +136,7 @@ Creates an appcore subclass. This is useful when creating an app that needs to u
 
 - `configure` - The app's initialization method. This is run as soon as an instance is made, but after the app has entered the startup state. Arguments passed to the constructor are forwarded to this method.
 - `instanceProps` - An object of properties to attach to the subclass's prototype.
-- `classProps` - An object of properties to attach to directly to the subclass.
+- `classProps` - An object of properties to attach directly to the subclass.
 
 ```js
 // a subclass
@@ -190,6 +190,8 @@ This method is a little different from the emitted state events in that it opera
 
 Let's demonstrate recursive eventing with two examples, one that uses `.once()` and one that uses `.onState()`.
 
+When using the emitted events, the second `state:running` event is called before the first one because of the order they end up running in. Using these methods can lead to code that is hard to reason about.
+
 ```js
 this.once("state:ready", function() {
 	this.once("state:running", function() {
@@ -206,7 +208,7 @@ this.once("state:running", function() {
 // > first
 ```
 
-When using the emitted events, the second `state:running` event is called before the first one because of the order they end up running in. Using these methods can lead to code that is hard to reason about.
+The `onState()` method fixes this by forcing the order they are declared in to be the order they are run.
 
 ```js
 this.onState("ready", function() {
@@ -223,8 +225,6 @@ this.onState("running", function() {
 // > first
 // > second
 ```
-
-The `onState()` method fixes this by forcing the order they are declared in to be the order they are run.
 
 ### app.startup(fn)
 
@@ -278,11 +278,9 @@ app.ready(function() {
 
 Let's the app know that something has gone wrong. `err` can be any kind of error and is added to an internal `app.errors` array.
 
-The app will emit an `error` event with the error. This means that if there are no error listeners, the error is thrown and has the potential to crash the application.
+If the app has not reached the `RUNNING` state yet, the app is put into the `FAIL` state on the next state change. Like the running state, the fail state is non-recoverable.
 
-If the app has not reached the `RUNNING` state yet, the app is put into the `FAIL` state on the next state change. Like the running state, the fail state non-recoverable.
-
-Use [appcore-log](https://beneaththeink.beanstalkapp.com/appcore-log) to log errors passed to this method, instead of throwing them.
+The app will emit an `error` event with the error. This means that if there are no error listeners, the error is thrown and has the potential to crash the application. You can use [appcore-log](https://beneaththeink.beanstalkapp.com/appcore-log) to log errors passed to this method, instead of throwing them.
 
 ### app.get([ key ])
 
@@ -299,7 +297,7 @@ app.get("foo.bar.baz");
 Sets `value` at `key` in the application configuration. If both the existing value at the key and `value` are plain objects, `value` is copied onto the existing object. Otherwise the `value` replaces whatever was there.
 
 ```js
-app.set({ foo: { bar: true });
+app.set({ foo: { bar: true }});
 app.set("foo", { hello: "world" });
 app.get("foo"); // { bar: true, hello: "world" }
 ```
@@ -309,7 +307,7 @@ app.get("foo"); // { bar: true, hello: "world" }
 Sets `value` at `key` in the application configuration. This is slightly different from `set()` in that no merging takes place, `value` will be the absolute value at `key`.
 
 ```js
-app.reset({ foo: { bar: true });
+app.reset({ foo: { bar: true }});
 app.reset("foo", { hello: "world" });
 app.get("foo"); // { hello: "world" }
 ```
@@ -319,7 +317,7 @@ app.get("foo"); // { hello: "world" }
 Sets `value` at `key` in the application configuration if and only if the existing value is undefined. This is like `set()` in that plain objects are merged.
 
 ```js
-app.defaults({ foo: { bar: true });
+app.defaults({ foo: { bar: true }});
 app.defaults("foo", { bar: "baz" });
 app.get("foo"); // { bar: true }
 ```
@@ -329,7 +327,7 @@ app.get("foo"); // { bar: true }
 Sets the value at `key` to undefined.
 
 ```js
-app.set({ foo: { bar: true });
+app.set({ foo: { bar: true }});
 app.unset("foo");
 app.get("foo"); // undefined
 ```
@@ -348,7 +346,7 @@ app.get("env"); // null
 
 Gets browser safe configuration.
 
-Generally there is configuration on your server that shouldn't be leaked to the client, things like passwords and secrets. To combat this, configuration must be explicitly whitelisted in order to be returned from this method. This can happen in two ways, adding a key to `browserKeys` or by setting a value within `browserOptions`.
+Generally there is configuration on your server that shouldn't be leaked to the client, things like passwords and secrets. To combat this, configuration must be explicitly whitelisted in order to be returned from this method. This can happen in two ways, adding a key to `browserKeys` option or by setting a property within the `browserOptions` object.
 
 ```js
 app.set("browserKeys", [ "public", "env" ]);
@@ -372,7 +370,7 @@ These properties can be found on all app instances. All properties are immutable
 
 - `app.env` - The app environment as set in the configuration. By default this is `process.env.NODE_ENV`, however it can be set with `app.set("env", "production")`.
 - `app.cwd` - The app's current working directory. By default this is `process.cwd()`, but it can be set with `app.set("cwd", "/my/path")`.
-- `app.isRoot` - Whether or not the app has any parents.
+- `app.isRoot` - Whether or not the app has a parent Appcore application.
 - `app.isServer` - Whether or not the app is running on the server.
 - `app.isClient` - Whether or not the app is running in a browser.
 
